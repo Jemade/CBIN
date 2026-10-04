@@ -11,6 +11,7 @@ from fastapi import Depends, FastAPI, Header, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
@@ -445,13 +446,7 @@ def create_app(settings=None):
     def portal_page():
         return FileResponse(portal / "index.html")
 
-    @app.get("/portal.js", include_in_schema=False)
-    def portal_script():
-        return FileResponse(portal / "portal.js", media_type="application/javascript")
-
-    @app.get("/portal.css", include_in_schema=False)
-    def portal_styles():
-        return FileResponse(portal / "portal.css", media_type="text/css")
+    app.mount("/assets", StaticFiles(directory=portal / "assets", check_dir=False), name="assets")
 
     return app
 

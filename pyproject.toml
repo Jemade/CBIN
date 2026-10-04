@@ -31,4 +31,4 @@ select = ["E", "F", "I"]
 ignore = ["E501"]
 
 [tool.setuptools.package-data]
-cbin = ["portal/*.html", "portal/*.css", "portal/*.js", "connectors/catalogue.json"]
+cbin = ["portal/*.html", "portal/assets/*", "connectors/catalogue.json"]

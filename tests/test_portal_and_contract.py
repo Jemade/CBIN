@@ -1,18 +1,21 @@
 import copy
+import re
 
 from conftest import headers
 
 
 def test_portal_assets_and_contract(system):
     _, client, _, _ = system
-    for path, content in [
-        ("/", "Business Interoperability Network"),
-        ("/portal.js", "use strict"),
-        ("/portal.css", ":root"),
-    ]:
-        response = client.get(path)
-        assert response.status_code == 200
-        assert content in response.text
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "Business Interoperability Network" in response.text
+    assets = re.findall(r'(?:src|href)="(/assets/[^"]+)"', response.text)
+    assert len(assets) == 2
+    for path in assets:
+        asset = client.get(path)
+        assert asset.status_code == 200
+        assert asset.content
+        assert ("javascript" if path.endswith(".js") else "text/css") in asset.headers["content-type"]
     schema = client.get("/openapi.json").json()
     assert "/v1/documents/{document_id}/accept" in schema["paths"]
     assert client.get("/health/ready").status_code == 200

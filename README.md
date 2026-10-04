@@ -22,12 +22,14 @@ Corebridge Business Interoperability Network is a vendor-neutral B2B transaction
 
 ## Start locally
 
-Python 3.12 or newer:
+Python 3.12 or newer and Node.js 22 or newer:
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -e '.[dev]'
+npm --prefix frontend ci
+npm --prefix frontend run build
 export CBIN_CREDENTIAL_PEPPER="$(python -c 'import secrets; print(secrets.token_hex(32))')"
 export CBIN_ENVIRONMENT=test
 export CBIN_DATABASE_URL=sqlite:///./cbin.db
@@ -91,3 +93,18 @@ CI repeats tests against SQLite and PostgreSQL. To run the same suite against a 
 - [Contributing](CONTRIBUTING.md) and [security reporting](SECURITY.md)
 
 The original product scope sets a multi-phase programme. This repository establishes the executable foundation; live vendor validation, Digital POD, auto-approval, PO variance checks, advanced verticals and production assurance remain tracked work, not completed claims.
+
+## TypeScript frontend
+
+The portal is built with React, TypeScript and Vite in `frontend/`. Build it before starting the Python server:
+
+```sh
+cd frontend
+npm ci
+npm run build
+cd ..
+```
+
+Docker builds the frontend automatically. For frontend development, run the API on port 8000 and `npm run dev` in `frontend`; Vite proxies API requests to the backend. The browser starts in an explicitly labelled sample workspace. Connect with an API credential to load tenant-scoped documents, inspect invoices, submit buyer decisions and view audit events. Credentials stay in memory only. Dashboard counts describe the current page, and software catalogue entries disclose prototype and validation status.
+
+Design references: [Dribbble accounts payable operations](https://dribbble.com/shots/27640759-SparkOffice-AP-Account-Payables-Management-Dashboard), [Pinterest invoice dashboard](https://www.pinterest.com/pin/invoices-dashboard--545005992391488039/), and [Rara Business](https://rarathemes.com/wordpress-themes/rara-business/). These inform hierarchy, density, spacing and responsive structure; the frontend is an original implementation.

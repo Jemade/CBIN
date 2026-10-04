@@ -84,11 +84,20 @@ class Invoice(StrictModel):
         return self
 
 
+class LineAllocation(StrictModel):
+    line_index: int = Field(ge=0, le=999)
+    account_reference: str = Field(min_length=1, max_length=100)
+
+
 class Accept(StrictModel):
     sku_mapping: dict[str, str] = Field(min_length=1, max_length=1000)
     supplier_reference: str = Field(min_length=1, max_length=100)
     account_reference: str = Field(min_length=1, max_length=100)
     tax_mapping: dict[str, str] = Field(default_factory=dict, max_length=100)
+    bookkeeping: bool = False
+    remember_mapping: bool = False
+    line_allocations: list[LineAllocation] = Field(default_factory=list, max_length=1000)
+    purchase_order_reference: str | None = Field(default=None, max_length=100)
 
 
 class Reject(StrictModel):

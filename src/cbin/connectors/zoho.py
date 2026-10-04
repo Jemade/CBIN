@@ -60,6 +60,101 @@ class ZohoBooksAdapter:
         except ValueError:
             raise AmbiguousOutcome("ZOHO_RESPONSE_UNCERTAIN") from None
 
+    def list_reference_pages(self, path, key, **params):
+        rows = []
+        for page in range(1, 101):
+            data = self.request("GET", path, params={"page": page, "per_page": 200, **params})
+            rows.extend(data.get(key, []))
+            if not data.get("page_context", {}).get("has_more_page", False):
+                return rows
+        raise ConnectorError("ZOHO_REFERENCE_PAGE_LIMIT")
+
+    def accounting_references(self):
+        contacts = self.list_reference_pages("/contacts", "contacts", contact_type="vendor")
+        accounts = self.list_reference_pages("/chartofaccounts", "chartofaccounts")
+        items = self.list_reference_pages("/items", "items")
+        taxes = self.list_reference_pages("/settings/taxes", "taxes")
+        account_types = {
+            "expense",
+            "other_expense",
+            "cost_of_goods_sold",
+            "stock",
+            "inventory",
+            "fixed_asset",
+            "other_current_asset",
+            "other_asset",
+        }
+        catalogue = {
+            "source": "zoho_books_test_adapter",
+            "supported_documents": ["B2B_INVOICE"],
+            "currency_exponents": self.config.get("currency_exponents", {}),
+            "suppliers": [
+                {"id": str(r["contact_id"]), "name": r["contact_name"]}
+                for r in contacts
+                if r.get("status") == "active" and r.get("contact_type", "vendor") == "vendor"
+            ],
+            "accounts": [
+                {
+                    "id": str(r["account_id"]),
+                    "name": r["account_name"],
+                    "code": r.get("account_code", ""),
+                    "type": r["account_type"],
+                }
+                for r in accounts
+                if r.get("is_active") and r.get("account_type") in account_types
+            ],
+            "items": [
+                {"id": str(r["item_id"]), "name": r["name"], "code": r.get("sku", "")}
+                for r in items
+                if r.get("status") == "active"
+            ],
+            "taxes": [
+                {
+                    "id": str(r["tax_id"]),
+                    "name": r["tax_name"],
+                    "rate": str(r["tax_percentage"]),
+                    "treatment": "erp_managed",
+                }
+                for r in taxes
+                if r.get("tax_factor", "rate") == "rate" and r.get("is_active", True)
+            ],
+            "purchase_orders": [],
+        }
+        payable = next(
+            (
+                r
+                for r in accounts
+                if r.get("is_active") and r.get("account_type") == "accounts_payable"
+            ),
+            None,
+        )
+        if payable:
+            catalogue["payable_account"] = {
+                "id": str(payable["account_id"]),
+                "name": payable["account_name"],
+            }
+        if self.config.get("purchase_order_lookup", False):
+            for r in self.list_reference_pages("/purchaseorders", "purchaseorders"):
+                exponent = catalogue["currency_exponents"].get(r.get("currency_code"))
+                if exponent is not None and r.get("status") in {
+                    "open",
+                    "issued",
+                    "partially_billed",
+                }:
+                    minor = Decimal(str(r["total"])) * Decimal(10) ** exponent
+                    if minor != minor.to_integral_value():
+                        raise ConnectorError("ZOHO_PURCHASE_ORDER_PRECISION")
+                    catalogue["purchase_orders"].append(
+                        {
+                            "id": str(r["purchaseorder_id"]),
+                            "name": r["purchaseorder_number"],
+                            "supplier_id": str(r["vendor_id"]),
+                            "currency": r["currency_code"],
+                            "total_minor": int(minor),
+                        }
+                    )
+        return catalogue
+
     def recover_from_timeout(self, document_id, invoice=None, mapping=None):
         reference = f"CBIN-{document_id}"
         result = self.request("GET", "/bills", params={"reference_number": reference})
@@ -100,14 +195,17 @@ class ZohoBooksAdapter:
             raise ConnectorError("ZOHO_CURRENCY_EXPONENT_MISSING")
         divisor = Decimal(10) ** exponent
         lines = []
-        for line in invoice["line_items"]:
-            tax_id = mapping["tax_mapping"].get(str(Decimal(line["tax_rate"]).normalize()))
+        allocations = {
+            r["line_index"]: r["account_reference"] for r in mapping.get("line_allocations", [])
+        }
+        for index, line in enumerate(invoice["line_items"]):
+            tax_id = mapping["tax_mapping"].get(format(Decimal(line["tax_rate"]).normalize(), "f"))
             if tax_id is None:
                 raise ConnectorError("ZOHO_TAX_MAPPING_MISSING")
             lines.append(
                 {
                     "item_id": mapping["sku_mapping"][line["item_code"]],
-                    "account_id": mapping["account_reference"],
+                    "account_id": allocations.get(index, mapping["account_reference"]),
                     "description": line["description"],
                     "tax_id": tax_id,
                     "quantity": float(Decimal(line["quantity"])),
@@ -123,6 +221,13 @@ class ZohoBooksAdapter:
                 "bill_number": f"CBIN-{document_id}",
                 "reference_number": f"CBIN-{document_id}",
                 "date": invoice["issued_at"],
+                "notes": "Supplier invoice: "
+                + invoice["external_reference"]
+                + (
+                    "; buyer PO header check: " + mapping["purchase_order_reference"]
+                    if mapping.get("purchase_order_reference")
+                    else ""
+                ),
                 "is_inclusive_tax": False,
                 "line_items": lines,
             },

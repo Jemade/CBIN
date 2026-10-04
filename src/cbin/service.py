@@ -204,6 +204,16 @@ def decide(db, credential, document_id, action, body):
     if document.status not in {"delivered", "under_review"}:
         fail("INVALID_STATE", "Document must be delivered before buyer review")
     if action == "accept":
+        if body.bookkeeping:
+            from cbin.bookkeeping import preview
+
+            preview(db, credential, document, body)
+        elif body.line_allocations or body.remember_mapping or body.purchase_order_reference:
+            fail(
+                "BOOKKEEPING_REQUIRED",
+                "Use the bookkeeping review to save allocations and mappings",
+                422,
+            )
         codes = {line["item_code"] for line in document.payload["line_items"]}
         if set(body.sku_mapping) != codes or not all(v.strip() for v in body.sku_mapping.values()):
             fail("MAPPING_INCOMPLETE", "Map every seller SKU to a buyer SKU", 422)
@@ -233,6 +243,10 @@ def decide(db, credential, document_id, action, body):
         {"reason": reason} if reason else {"mapping_complete": True},
     )
     if action == "accept":
+        if body.bookkeeping:
+            from cbin.bookkeeping import remember
+
+            remember(db, credential, document, body)
         enqueue(db, credential.environment, "post", {}, f"post:{document.id}", document.id)
     return document
 

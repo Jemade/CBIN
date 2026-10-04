@@ -17,3 +17,12 @@ def adapter_for(business_id, environment):
         return ZohoBooksAdapter(entry)
     # Live ledger posting is deliberately gated until sandbox reconciliation is validated.
     raise ConnectorError("CONNECTOR_NOT_APPROVED_FOR_ENVIRONMENT")
+
+
+def connection_fingerprint(business_id, environment):
+    import hashlib
+
+    config = json.loads(os.environ.get("CBIN_CONNECTOR_CONFIG") or "{}")
+    return hashlib.sha256(
+        json.dumps([environment, config.get(business_id)], sort_keys=True).encode()
+    ).hexdigest()

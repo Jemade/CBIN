@@ -37,3 +37,11 @@ jobs:
         env:
           CBIN_TEST_DATABASE_URL: ${{ matrix.database == 'postgres' && 'postgresql+psycopg://cbin:test-only@localhost:5432/cbin_test' || '' }}
       - run: python -m compileall -q src addons
+      - run: npx playwright install --with-deps chromium
+        if: matrix.database == 'sqlite'
+        working-directory: frontend
+      - run: npm run test:e2e
+        if: matrix.database == 'sqlite'
+        working-directory: frontend
+      - run: docker build -t cbin:test .
+        if: matrix.database == 'sqlite'

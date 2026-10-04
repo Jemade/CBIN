@@ -126,3 +126,22 @@ def make_database(url):
 def initialize(engine):
     # Initial schema only. Future changes require explicit, reviewed migrations.
     Base.metadata.create_all(engine)
+
+
+class AccountingSnapshot(Base):
+    __tablename__ = "accounting_snapshots"
+    scope: Mapped[str] = mapped_column(String(64), primary_key=True)
+    business_id: Mapped[str] = mapped_column(String(40))
+    environment: Mapped[str] = mapped_column(String(8))
+    catalogue: Mapped[dict] = mapped_column(JSON)
+    refreshed_at: Mapped[int] = mapped_column(Integer)
+
+
+class BuyerMapping(Base):
+    __tablename__ = "buyer_mappings"
+    scope: Mapped[str] = mapped_column(String(64), primary_key=True)
+    buyer_id: Mapped[str] = mapped_column(String(40))
+    seller_id: Mapped[str] = mapped_column(String(40))
+    environment: Mapped[str] = mapped_column(String(8))
+    mapping: Mapped[dict] = mapped_column(JSON)
+    updated_at: Mapped[int] = mapped_column(Integer)

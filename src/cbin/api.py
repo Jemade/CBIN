@@ -269,6 +269,36 @@ def create_app(settings=None):
             ],
         }
 
+    @app.get("/v1/documents/{document_id}/bookkeeping")
+    def bookkeeping_context(
+        document_id: str, credential=Depends(authenticate), db=Depends(session)
+    ):
+        from cbin.bookkeeping import buyer_access, references, suggestions
+
+        document = get_document(db, credential, document_id)
+        buyer_access(credential, document)
+        catalogue = references(db, credential)
+        return {
+            "references": catalogue,
+            "suggestions": suggestions(db, credential, document, catalogue),
+        }
+
+    @app.post("/v1/documents/{document_id}/bookkeeping/preview")
+    def bookkeeping_preview(
+        document_id: str, body: Accept, credential=Depends(authenticate), db=Depends(session)
+    ):
+        from cbin.bookkeeping import preview
+
+        return preview(db, credential, get_document(db, credential, document_id), body)
+
+    @app.post("/v1/accounting/references/refresh")
+    def refresh_accounting(credential=Depends(authenticate), db=Depends(session)):
+        from cbin.bookkeeping import references
+
+        if credential.role not in {"reviewer", "admin"}:
+            raise DomainError("FORBIDDEN", "Buyer reviewer or administrator required", 403)
+        return references(db, credential, refresh=True)
+
     @app.post("/v1/documents/{document_id}/accept")
     def accept_document(
         document_id: str, body: Accept, credential=Depends(authenticate), db=Depends(session)

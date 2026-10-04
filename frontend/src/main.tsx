@@ -20,12 +20,13 @@ import {
   LogOut,
 } from "lucide-react";
 import "./style.css";
+import { BookkeepingReview, type AccountingChoice } from "./BookkeepingReview";
 import catalogue from "../../src/cbin/connectors/catalogue.json";
 
-type Doc = {
+export type Doc = {
   id: string;
   status: string;
-  created_at: string;
+  created_at: string | number;
   posted_reference?: string;
   fiscal_verification?: string;
   payload: {
@@ -53,7 +54,7 @@ type Doc = {
 type Event = {
   id: number;
   kind: string;
-  created_at: string;
+  created_at: string | number;
   document_id?: string;
   data?: unknown;
 };
@@ -140,6 +141,9 @@ type Job = {
   document_id?: string;
 };
 function App() {
+  const [demoChoices, setDemoChoices] = useState<
+    Record<string, AccountingChoice>
+  >({});
   const [jobs, setJobs] = useState<Job[]>([]),
     [jobReason, setJobReason] = useState("");
   const [page, setPage] = useState("Overview"),
@@ -156,11 +160,7 @@ function App() {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [offset, setOffset] = useState(0),
-    [reason, setReason] = useState(""),
-    [supplier, setSupplier] = useState(""),
-    [account, setAccount] = useState(""),
-    [sku, setSku] = useState<Record<string, string>>({}),
-    [tax, setTax] = useState<Record<string, string>>({});
+    [reason, setReason] = useState("");
   async function api<T>(
     path: string,
     body?: unknown,
@@ -221,6 +221,7 @@ function App() {
       );
     focusables()[0]?.focus();
     const key = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
       if (e.key === "Escape") {
         setLogin(false);
         setSelected(null);
@@ -274,14 +275,6 @@ function App() {
   }
   async function open(d: Doc) {
     setError("");
-    setSupplier("");
-    setAccount("");
-    setSku(
-      Object.fromEntries(d.payload.line_items.map((l) => [l.item_code, ""])),
-    );
-    setTax(
-      Object.fromEntries(d.payload.line_items.map((l) => [l.tax_rate, ""])),
-    );
     setReason("");
     if (demo) {
       setSelected(d);
@@ -293,12 +286,21 @@ function App() {
       setError((e as Error).message);
     }
   }
-  async function decide(accept: boolean) {
+  async function decide(
+    accept: boolean,
+    choice?: AccountingChoice,
+    rejectionReason?: string,
+  ) {
     if (!selected) return;
     setBusy(true);
     setError("");
     try {
       if (demo) {
+        if (choice?.remember_mapping)
+          setDemoChoices({
+            ...demoChoices,
+            [selected.payload.seller.cbin_id]: choice,
+          });
         const updated = {
           ...selected,
           status: accept ? "accepted" : "rejected_by_buyer",
@@ -308,15 +310,10 @@ function App() {
       } else {
         let body: unknown;
         if (accept) {
-          if (Object.values(sku).some((v) => !v.trim()))
-            throw new Error("Map every item to an ERP item code.");
-          body = {
-            supplier_reference: supplier,
-            account_reference: account,
-            sku_mapping: sku,
-            tax_mapping: tax,
-          };
-        } else body = { reason };
+          if (!choice)
+            throw new Error("Review the bookkeeping entry before approval.");
+          body = choice;
+        } else body = { reason: rejectionReason || reason };
         await api(
           `/v1/documents/${selected.id}/${accept ? "accept" : "reject"}`,
           body,
@@ -326,6 +323,7 @@ function App() {
       }
     } catch (e) {
       setError((e as Error).message);
+      throw e;
     } finally {
       setBusy(false);
     }
@@ -420,6 +418,8 @@ function App() {
               aria-label="Disconnect"
               onClick={() => {
                 setToken("");
+                setJobs([]);
+                setSelected(null);
                 setDemo(true);
                 setDocs(samples);
                 setEvents([]);
@@ -830,7 +830,13 @@ function App() {
                     <strong>{e.kind.replaceAll(".", " · ")}</strong>
                     <small>{e.document_id || "Workspace event"}</small>
                   </div>
-                  <time>{new Date(e.created_at).toLocaleString()}</time>
+                  <time>
+                    {new Date(
+                      typeof e.created_at === "number"
+                        ? e.created_at * 1000
+                        : e.created_at,
+                    ).toLocaleString()}
+                  </time>
                 </div>
               ))}
               {!demo && !events.length && (
@@ -985,6 +991,8 @@ function App() {
                 setDraft("");
                 setDemo(false);
                 setDocs([]);
+                setJobs([]);
+                setSelected(null);
                 setEvents([]);
                 setConnectors([]);
                 setOffset(0);
@@ -1129,90 +1137,17 @@ function App() {
                 )}
               </div>
               <aside className="review">
-                <h3>Review & decision</h3>
-                <p>
-                  Confirm the supplier and map the document to your accounting
-                  records.
-                </p>
-                {error && (
-                  <div role="alert" className="error">
-                    {error}
-                  </div>
-                )}
                 {["delivered", "under_review"].includes(selected.status) ? (
-                  <>
-                    <label>
-                      Supplier reference
-                      <input
-                        value={supplier}
-                        onChange={(e) => setSupplier(e.target.value)}
-                        placeholder="ERP supplier code"
-                      />
-                    </label>
-                    <label>
-                      Account reference
-                      <input
-                        value={account}
-                        onChange={(e) => setAccount(e.target.value)}
-                        placeholder="ERP account code"
-                      />
-                    </label>
-                    <div className="mappingheading">Item mapping</div>
-                    {Object.keys(sku).map((code) => (
-                      <label key={code}>
-                        {" "}
-                        {code} → your ERP item
-                        <input
-                          value={sku[code]}
-                          onChange={(e) =>
-                            setSku({ ...sku, [code]: e.target.value })
-                          }
-                          placeholder="ERP item code"
-                        />
-                      </label>
-                    ))}
-                    <div className="mappingheading">Tax mapping</div>
-                    {Object.keys(tax).map((rate) => (
-                      <label key={rate}>
-                        Tax rate {rate}%
-                        <input
-                          value={tax[rate]}
-                          onChange={(e) =>
-                            setTax({ ...tax, [rate]: e.target.value })
-                          }
-                          placeholder="ERP tax code"
-                        />
-                      </label>
-                    ))}
-                    <button
-                      className="primary"
-                      disabled={
-                        busy || (!demo && (!supplier.trim() || !account.trim()))
-                      }
-                      onClick={() => void decide(true)}
-                    >
-                      <Check size={16} />
-                      Approve & queue posting
-                    </button>
-                    <label>
-                      Rejection reason
-                      <input
-                        value={reason}
-                        onChange={(e) => setReason(e.target.value)}
-                        placeholder="Explain the issue"
-                      />
-                    </label>
-                    <button
-                      className="rejectbutton"
-                      disabled={busy || !reason.trim()}
-                      onClick={() => void decide(false)}
-                    >
-                      Reject document
-                    </button>
-                  </>
+                  <BookkeepingReview
+                    document={selected}
+                    demo={demo}
+                    request={api}
+                    demoSaved={demoChoices[selected.payload.seller.cbin_id]}
+                    onApprove={(choice) => decide(true, choice)}
+                    onReject={(reason) => decide(false, undefined, reason)}
+                  />
                 ) : (
                   <div className="decisiondone">
-                    <Check size={24} />
                     <strong>{label(selected.status)}</strong>
                     <p>This document has moved beyond buyer review.</p>
                   </div>
@@ -1225,7 +1160,13 @@ function App() {
                 {selected.timeline?.map((e) => (
                   <div className="mini-event" key={e.id}>
                     <strong>{e.kind}</strong>
-                    <small>{new Date(e.created_at).toLocaleString()}</small>
+                    <small>
+                      {new Date(
+                        typeof e.created_at === "number"
+                          ? e.created_at * 1000
+                          : e.created_at,
+                      ).toLocaleString()}
+                    </small>
                   </div>
                 ))}
               </aside>

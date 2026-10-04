@@ -1246,3 +1246,235 @@ textarea {
   padding: 0 24px;
   max-width: 650px;
 }
+/* Buyer bookkeeping uses one document and one focused review column. */
+.detail {
+  width: 1240px;
+}
+.detailbody {
+  grid-template-columns: minmax(0, 1fr) minmax(400px, 1fr);
+}
+.bookkeeping h3 {
+  font-size: 19px;
+  margin: 0 0 9px;
+}
+.bookkeeping-heading {
+  display: flex;
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 20px;
+}
+.bookkeeping-heading button {
+  font-size: 11px;
+  white-space: nowrap;
+  text-decoration: underline;
+  color: #526a42;
+}
+.bookkeeping-heading p {
+  font-size: 12px;
+  margin: 0;
+}
+.reference-source {
+  font-size: 11px;
+  color: #8a967f;
+  line-height: 1.7;
+  margin-bottom: 22px;
+}
+.reference-source strong {
+  color: #42684b;
+  font-weight: 500;
+}
+.accounting-select {
+  position: relative;
+  margin-bottom: 18px;
+}
+.accounting-select > label {
+  font-size: 12px;
+  margin: 0 0 7px;
+}
+.select-input {
+  position: relative;
+}
+.select-input input {
+  border: 1px solid #dfe5da;
+  border-radius: 5px;
+  width: 100%;
+  background: #fff;
+  padding: 12px 30px 12px 12px;
+  font-size: 12px;
+  color: #3d5032;
+}
+.select-input button {
+  position: absolute;
+  right: 9px;
+  top: 8px;
+  font-size: 18px;
+  color: #a0ab96;
+}
+.select-options {
+  position: absolute;
+  z-index: 25;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #dfe5da;
+  border-radius: 5px;
+  max-height: 240px;
+  overflow: auto;
+  box-shadow: 0 8px 18px #273b2210;
+}
+.select-options button {
+  display: block;
+  width: 100%;
+  padding: 11px 12px;
+  text-align: left;
+  border-bottom: 1px solid #f0f3ec;
+}
+.select-options button:hover,
+.select-options button.highlighted {
+  background: #f1f5ed;
+}
+.select-options strong {
+  font-weight: 500;
+  font-size: 12px;
+  display: block;
+  color: #426036;
+}
+.select-options small {
+  font-size: 10px;
+  color: #9aa68e;
+  display: block;
+  margin-top: 5px;
+}
+.select-options p {
+  padding: 15px;
+  margin: 0;
+  font-size: 11px;
+}
+.allocation {
+  border-top: 1px solid #e0e6da;
+  padding: 18px 0 0;
+}
+.allocation-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+.allocation-title strong {
+  font-size: 12px;
+  font-weight: 600;
+  color: #546a45;
+}
+.allocation-title span {
+  font-size: 11px;
+  color: #98a48a;
+}
+.allocation-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.bookkeeping .po-help {
+  font-size: 10px;
+  color: #9aa58b;
+  margin: -8px 0 20px;
+  line-height: 1.7;
+}
+label.remember-choice {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  margin: 20px 0;
+}
+label.remember-choice input {
+  width: 14px;
+  height: 14px;
+  accent-color: #295f3c;
+}
+.preview-button {
+  width: 100%;
+  border: 1px solid #5a7950;
+  border-radius: 5px;
+  padding: 12px;
+  background: #fff;
+  color: #3e6233;
+  font-size: 12px;
+}
+.entry-preview {
+  border-top: 1px solid #dfe6d5;
+  margin-top: 24px;
+  padding-top: 20px;
+}
+.entry-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.entry-heading h4 {
+  font-size: 13px;
+  color: #3f6031;
+  margin: 0;
+}
+.entry-heading span {
+  font-size: 10px;
+  color: #56834a;
+}
+.entry-preview td,
+.entry-preview th {
+  font-size: 11px;
+  padding: 12px 9px;
+  white-space: normal;
+}
+.entry-preview p {
+  font-size: 10px;
+  margin: 15px 0;
+  line-height: 1.7;
+}
+.entry-preview .po-match {
+  color: #648754;
+}
+.entry-preview .primary {
+  margin-top: 5px;
+}
+.reject-area {
+  border-top: 1px solid #e3e8dc;
+  margin-top: 27px;
+  padding-top: 22px;
+}
+.reject-area label {
+  font-size: 11px;
+}
+.review .demo-warning {
+  margin-top: 20px;
+}
+@media (max-width: 900px) {
+  .detailbody {
+    grid-template-columns: 1fr;
+  }
+  .detail {
+    max-width: 700px;
+  }
+}
+@media (max-width: 650px) {
+  .allocation-fields {
+    grid-template-columns: 1fr;
+  }
+  .bookkeeping-heading {
+    flex-direction: column;
+  }
+  .allocation-title {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+.bookkeeping-fields {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}

@@ -4,7 +4,14 @@ import json
 from sqlalchemy import select
 
 from cbin.config import Settings
-from cbin.db import Business, Credential, initialize, make_database
+from cbin.db import (
+    AccountingSnapshot,
+    Business,
+    BuyerMapping,
+    Credential,
+    initialize,
+    make_database,
+)
 from cbin.security import issue_key, key_digest
 from cbin.service import record, uid
 
@@ -32,6 +39,7 @@ def main():
     )
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("init-db")
+    sub.add_parser("migrate-bookkeeping")
     sub.add_parser("demo")
     business = sub.add_parser("add-business")
     business.add_argument("id")
@@ -55,6 +63,11 @@ def main():
     args = parser.parse_args()
     settings = Settings.from_env()
     engine, sessions = make_database(settings.database_url)
+    if args.command == "migrate-bookkeeping":
+        for table in (AccountingSnapshot.__table__, BuyerMapping.__table__):
+            table.create(engine, checkfirst=True)
+        print("Bookkeeping tables ready")
+        return
     if args.command == "init-db":
         initialize(engine)
         print("Initial schema ready")

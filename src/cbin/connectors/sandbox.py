@@ -14,3 +14,44 @@ class SandboxAdapter:
         if invoice["currency"] not in {"USD", "ZWG"}:
             raise ConnectorError("SANDBOX_CURRENCY_UNSUPPORTED")
         return f"sandbox:{document_id}"
+
+    def accounting_references(self):
+        return {
+            "source": "sandbox_simulation",
+            "supported_documents": ["B2B_INVOICE", "CREDIT_NOTE"],
+            "currency_exponents": {"USD": 2, "ZWG": 2},
+            "suppliers": [
+                {"id": "SUP-01", "name": "Demo supplier"},
+                {"id": "SUP-02", "name": "Demo logistics supplier"},
+            ],
+            "accounts": [
+                {"id": "EXP-OFFICE", "name": "Office supplies", "type": "expense"},
+                {"id": "INV-GOODS", "name": "Goods inventory", "type": "inventory"},
+                {"id": "ASSET-EQUIPMENT", "name": "Equipment", "type": "fixed_asset"},
+            ],
+            "items": [
+                {"id": "ITEM-CABLE", "name": "Network cable", "code": "CABLE-001"},
+                {"id": "ITEM-OFFICE", "name": "Office supplies", "code": "OFFICE-001"},
+            ],
+            "taxes": [
+                {
+                    "id": "TAX-15",
+                    "name": "Demo tax 15%",
+                    "rate": "15",
+                    "treatment": "recoverable",
+                    "account_id": "TAX-INPUT",
+                    "account_name": "Demo input tax",
+                },
+                {"id": "TAX-0", "name": "Demo zero tax", "rate": "0", "treatment": "cost"},
+            ],
+            "payable_account": {"id": "AP", "name": "Accounts payable"},
+            "purchase_orders": [
+                {
+                    "id": "PO-001",
+                    "name": "PO-001 · Demo network cables",
+                    "supplier_id": "SUP-01",
+                    "currency": "USD",
+                    "total_minor": 23000,
+                }
+            ],
+        }

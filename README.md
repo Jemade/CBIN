@@ -108,3 +108,7 @@ cd ..
 Docker builds the frontend automatically. For frontend development, run the API on port 8000 and `npm run dev` in `frontend`; Vite proxies API requests to the backend. The browser starts in an explicitly labelled sample workspace. Connect with an API credential to load tenant-scoped documents, inspect invoices, submit buyer decisions and view audit events. Credentials stay in memory only. Dashboard counts describe the current page, and software catalogue entries disclose prototype and validation status.
 
 Design references: [Dribbble accounts payable operations](https://dribbble.com/shots/27640759-SparkOffice-AP-Account-Payables-Management-Dashboard), [Pinterest invoice dashboard](https://www.pinterest.com/pin/invoices-dashboard--545005992391488039/), and [Rara Business](https://rarathemes.com/wordpress-themes/rara-business/). These inform hierarchy, density, spacing and responsive structure; the frontend is an original implementation.
+
+## Buyer bookkeeping
+
+The buyer can search accounting records by name, allocate each invoice line to a purchase account, select tax codes and review a balanced proposed entry before approving a bill. Approved choices can be remembered for future invoices from that supplier. Optional purchase-order checks compare the supplier, currency and total. Sandbox records are labelled; the Zoho test adapter fetches real organization references. See [the bookkeeping guide](docs/BOOKKEEPING.md) for configuration, limitations, the additive database upgrade and full test commands.

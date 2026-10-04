@@ -3,6 +3,7 @@ WORKDIR /build/frontend
 COPY frontend/package*.json ./
 RUN npm ci --no-audit --no-fund
 COPY frontend ./
+COPY src/cbin/connectors/catalogue.json /build/src/cbin/connectors/catalogue.json
 RUN npm run build
 
 FROM python:3.12-slim

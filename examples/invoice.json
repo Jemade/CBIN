@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "document_type": "B2B_INVOICE",
+  "external_reference": "DEMO-INV-001",
+  "issued_at": "2026-10-04",
+  "currency": "USD",
+  "exchange_rate_zig": "26.5",
+  "seller": {"cbin_id": "CBIN-DEMO-SELLER", "tin": "DEMO-TIN-SELLER"},
+  "buyer": {"cbin_id": "CBIN-DEMO-BUYER", "tin": "DEMO-TIN-BUYER"},
+  "line_items": [
+    {"item_code": "SKU-CABLE", "description": "Network cable", "quantity": "2", "unit_price_minor": 10000, "tax_rate": "15"}
+  ],
+  "totals": {"subtotal_minor": 20000, "tax_minor": 3000, "grand_total_minor": 23000}
+}

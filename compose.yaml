@@ -1,0 +1,45 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: cbin
+      POSTGRES_USER: cbin
+      POSTGRES_PASSWORD: ${CBIN_DB_PASSWORD:?Set CBIN_DB_PASSWORD}
+    volumes:
+      - cbin-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U cbin"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  migrate:
+    build: .
+    command: [cbin, init-db]
+    environment: &app-environment
+      CBIN_DATABASE_URL: postgresql+psycopg://cbin:${CBIN_DB_PASSWORD}@db:5432/cbin
+      CBIN_ENVIRONMENT: test
+      CBIN_CREDENTIAL_PEPPER: ${CBIN_CREDENTIAL_PEPPER:?Set CBIN_CREDENTIAL_PEPPER}
+    depends_on:
+      db:
+        condition: service_healthy
+  api:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment: *app-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  worker:
+    build: .
+    command: [cbin-worker]
+    environment:
+      <<: *app-environment
+      CBIN_CONNECTOR_CONFIG: ${CBIN_CONNECTOR_CONFIG:-}
+      CBIN_WEBHOOK_ALLOWLIST: ${CBIN_WEBHOOK_ALLOWLIST:-[]}
+    stop_grace_period: 60s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+volumes:
+  cbin-data:

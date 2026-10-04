@@ -1,0 +1,11 @@
+<odoo>
+  <record id="cron_cbin_send" model="ir.cron">
+    <field name="name">CBIN: Send queued invoices</field>
+    <field name="model_id" ref="model_cbin_outbound"/>
+    <field name="state">code</field>
+    <field name="code">model._cron_send()</field>
+    <field name="interval_number">1</field>
+    <field name="interval_type">minutes</field>
+    <field name="active">False</field>
+  </record>
+</odoo>

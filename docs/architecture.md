@@ -34,6 +34,8 @@ OpenAPI is generated from the actual handlers at `/openapi.json`, with interacti
 
 | Endpoint | Purpose |
 | --- | --- |
+| `GET /v1/connectors` | Observed software catalogue and honest capability statuses |
+| `POST /v1/connectors/{software_id}/documents` | Tenant/environment-scoped reviewed vendor JSON mapping and ingestion |
 | `POST /v1/documents` | Canonical invoice/credit-note ingestion, mandatory Idempotency-Key |
 | `GET /v1/documents` | Tenant-visible list and external-reference/status filtering |
 | `GET /v1/documents/{id}` | Current status, immutable payload and audit timeline |

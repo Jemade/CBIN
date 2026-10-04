@@ -44,3 +44,25 @@ $('login').onsubmit=(e)=>{e.preventDefault();credential=$('key').value;$('key').
 $('logout').onclick=()=>{credential='';$('documents').replaceChildren(el('p','Disconnected.'));$('detail').hidden=true;$('detail').replaceChildren();$('jobs').replaceChildren();message('Credential cleared.');};
 $('refresh').onclick=()=>run(refresh);$('filter').onchange=()=>run(refresh);
 $('load-jobs').onclick=()=>run(async()=>{const result=await api('/v1/operations/jobs');$('jobs').replaceChildren();for(const job of result.items){const card=el('article',undefined,'card');card.append(el('h3',`${job.kind} · ${job.state}`),el('p',`Attempts: ${job.attempts} · ${job.last_error || 'No error'}`));if(job.state==='dead_letter'){const label=el('label','Replay reason');const reason=el('input');label.append(reason);const button=el('button','Replay');button.onclick=()=>run(async()=>{await api(`/v1/operations/jobs/${job.id}/replay`,{method:'POST',body:JSON.stringify({reason:reason.value})});message('Replay queued with audit record.');});card.append(label,button);}$('jobs').append(card);}});
+
+let softwareCatalogue = [];
+function renderConnectors() {
+  const search = $('connector-search').value.toLowerCase();
+  $('connectors').replaceChildren();
+  for(const software of softwareCatalogue.filter(s => `${s.name} ${s.category}`.toLowerCase().includes(search))) {
+    const card = el('article', undefined, 'card');
+    card.append(el('h3', software.name), el('span', software.category, 'badge'),
+      el('p', `Capture: ${software.cbin_capture_status.replaceAll('_',' ')}`),
+      el('p', `Posting: ${software.cbin_posting_status.replaceAll('_',' ')}`),
+      el('p', 'Live integration: not verified'));
+    $('connectors').append(card);
+  }
+}
+$('load-connectors').onclick = () => run(async () => {
+  const result = await api('/v1/connectors');
+  softwareCatalogue = result.items;
+  $('catalogue-notice').textContent = `${result.observed_count} entries checked ${result.checked_at}. ${result.notice}`;
+  renderConnectors();
+});
+$('connector-search').oninput = renderConnectors;
+$('logout').addEventListener('click', () => {softwareCatalogue = []; $('connectors').replaceChildren();});

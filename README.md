@@ -17,6 +17,7 @@ Corebridge Business Interoperability Network is a vendor-neutral B2B transaction
 - Buyer portal and operator job view. Credentials stay in browser memory.
 - Durable offline connector spool and an Odoo 18 outbound addon with cron disabled by default.
 - Zoho Books draft bill adapter, tax/currency mappings and timeout recovery, gated to test mode.
+- Catalogue of all 34 observed Fiscal Harmony entries, visible connector statuses and tenant-scoped reviewed JSON import mappings.
 - PostgreSQL deployment configuration, SQLite local development, Docker and CI database matrix.
 
 ## Start locally
@@ -83,6 +84,7 @@ CI repeats tests against SQLite and PostgreSQL. To run the same suite against a 
 
 - [Architecture and contracts](docs/architecture.md)
 - [Connector setup and integration limits](docs/connectors.md)
+- [All 34 observed Fiscal Harmony products and mapping setup](docs/fiscal-harmony-coverage.md)
 - [Operations and security](docs/operations.md)
 - [Scope coverage and delivery backlog](docs/scope-coverage.md)
 - [Research and pilot evidence](docs/research.md)

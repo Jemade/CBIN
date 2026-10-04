@@ -1,0 +1,427 @@
+{
+  "source_url": "https://fiscalharmony.co.zw/products/fiscalisation/integrations/",
+  "checked_at": "2026-10-04",
+  "source_type": "public_page_embedded_catalogue",
+  "source_catalogue_sha256": "32b4faa62d4e2aa32b483c099a9ddc03871441c1609496e3747ed69fe4a554f3",
+  "advertised_count": "30+",
+  "observed_count": 34,
+  "notice": "Fiscal Harmony listing is not CBIN integration certification. All entries accept CBIN canonical invoices; vendor payload imports require a reviewed mapping profile. Live posting is not enabled.",
+  "items": [
+    {
+      "id": "hpos",
+      "name": "HPOS",
+      "category": "POS",
+      "listed_platforms": [
+        "Desktop",
+        "Cloud"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "xero",
+      "name": "Xero",
+      "category": "Accounting",
+      "listed_platforms": [
+        "Cloud"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "quickbooksdesktop",
+      "name": "QuickBooks Desktop",
+      "category": "Accounting",
+      "listed_platforms": [
+        "Desktop"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "quickbooksonline",
+      "name": "QuickBooks Online",
+      "category": "Accounting",
+      "listed_platforms": [
+        "Cloud"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "excel",
+      "name": "Microsoft Excel",
+      "category": "Other",
+      "listed_platforms": [
+        "Desktop"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "pastelpartner",
+      "name": "Sage Pastel Partner",
+      "category": "Accounting",
+      "listed_platforms": [
+        "Desktop"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "pastelxpress",
+      "name": "Sage Pastel Xpress",
+      "category": "Accounting",
+      "listed_platforms": [
+        "Desktop"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "evolution",
+      "name": "Sage Evolution",
+      "category": "ERP",
+      "listed_platforms": [
+        "Desktop"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "sageone",
+      "name": "Sage Business Cloud Accounting (Sage One)",
+      "category": "Accounting",
+      "listed_platforms": [
+        "Cloud"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "sagepastelpos",
+      "name": "Sage Pastel POS",
+      "category": "POS",
+      "listed_platforms": [
+        "Desktop"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "sageevolutionpos",
+      "name": "Sage Evolution POS",
+      "category": "POS",
+      "listed_platforms": [
+        "Desktop"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "zohobilling",
+      "name": "Zoho Billing",
+      "category": "Accounting",
+      "listed_platforms": [
+        "Cloud"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "zohobooks",
+      "name": "Zoho Books",
+      "category": "Accounting",
+      "listed_platforms": [
+        "Cloud"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "test_prototype",
+      "native_adapter": "zoho",
+      "live_verified": false
+    },
+    {
+      "id": "zohoinventory",
+      "name": "Zoho Inventory",
+      "category": "ERP",
+      "listed_platforms": [
+        "Cloud"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "ivend",
+      "name": "iVend Retail",
+      "category": "ERP",
+      "listed_platforms": [
+        "Desktop",
+        "Cloud"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "cin7core",
+      "name": "Cin7 Core (formerly DEAR Systems)",
+      "category": "ERP",
+      "listed_platforms": [
+        "Cloud"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "sap",
+      "name": "SAP Business One",
+      "category": "ERP",
+      "listed_platforms": [
+        "Cloud"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "palladium",
+      "name": "Palladium Business Solutions",
+      "category": "ERP",
+      "listed_platforms": [
+        "Desktop"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "palladiumpos",
+      "name": "Palladium POS",
+      "category": "POS",
+      "listed_platforms": [
+        "Desktop"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "matrix",
+      "name": "Matrix Software",
+      "category": "ERP",
+      "listed_platforms": [
+        "Desktop POS"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "meatmatrixpos",
+      "name": "Meat Matrix POS",
+      "category": "POS",
+      "listed_platforms": [
+        "Desktop"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "manager",
+      "name": "Manager.io",
+      "category": "Accounting",
+      "listed_platforms": [
+        "Cloud"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "erpnext",
+      "name": "ERPNext",
+      "category": "ERP",
+      "listed_platforms": [
+        "Cloud",
+        "Self-hosted"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "shopify",
+      "name": "Shopify",
+      "category": "Ecom",
+      "listed_platforms": [
+        "Cloud"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "fincon",
+      "name": "Fincon",
+      "category": "ERP Accounting",
+      "listed_platforms": [
+        "Desktop"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "4pos",
+      "name": "4POS",
+      "category": "POS",
+      "listed_platforms": [
+        "Desktop"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "intellectpos",
+      "name": "Sales Intellect POS",
+      "category": "POS",
+      "listed_platforms": [
+        "Android Mobile"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "gaap",
+      "name": "GAAP Unity",
+      "category": "POS",
+      "listed_platforms": [
+        "Cloud"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "odoo17",
+      "name": "Odoo v17",
+      "category": "ERP",
+      "listed_platforms": [
+        "Cloud",
+        "Self-hosted"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "odoo18",
+      "name": "Odoo v18",
+      "category": "ERP",
+      "listed_platforms": [
+        "Cloud",
+        "Self-hosted"
+      ],
+      "cbin_capture_status": "prototype",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "odoo19",
+      "name": "Odoo v19",
+      "category": "ERP",
+      "listed_platforms": [
+        "Cloud",
+        "Self-hosted"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "odoocloud",
+      "name": "Odoo Cloud",
+      "category": "ERP",
+      "listed_platforms": [
+        "Cloud"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "salesplay",
+      "name": "Sales Play",
+      "category": "POS",
+      "listed_platforms": [
+        "Cloud",
+        "Mobile"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    },
+    {
+      "id": "oracledb",
+      "name": "Oracle DB",
+      "category": "Other",
+      "listed_platforms": [
+        "Desktop",
+        "Self-hosted"
+      ],
+      "cbin_capture_status": "mapping_required",
+      "cbin_posting_status": "not_implemented",
+      "native_adapter": null,
+      "live_verified": false
+    }
+  ]
+}

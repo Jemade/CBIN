@@ -1,5 +1,7 @@
 import base64
+import json
 import logging
+import os
 import re
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -13,6 +15,8 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from cbin.config import Settings
+from cbin.connectors.catalogue import catalogue, software_by_id
+from cbin.connectors.mapping import MappedSubmission, MappingError, MappingProfile, normalize
 from cbin.db import (
     Attempt,
     AuditEvent,
@@ -171,6 +175,65 @@ def create_app(settings=None):
     ):
         document, duplicate = submit(db, credential, invoice, idempotency_key)
         return {**serialize_document(document), "duplicate": duplicate}
+
+    @app.get("/v1/connectors")
+    def list_connectors(credential=Depends(authenticate)):
+        return catalogue()
+
+    @app.post("/v1/connectors/{software_id}/documents", status_code=202)
+    def import_document(
+        software_id: str,
+        body: MappedSubmission,
+        idempotency_key: str = Header(min_length=1, max_length=200),
+        credential=Depends(authenticate),
+        db=Depends(session),
+    ):
+        if credential.role not in {"submitter", "admin"}:
+            raise DomainError("FORBIDDEN", "Submitter or business admin credential required", 403)
+        if software_by_id(software_id) is None:
+            raise DomainError("SOFTWARE_NOT_FOUND", "Software not in the observed catalogue", 404)
+        try:
+            profiles = json.loads(os.environ.get("CBIN_IMPORT_PROFILES") or "{}")
+            entry = profiles
+            for scope in (
+                credential.environment,
+                credential.business_id,
+                software_id,
+                body.profile_id,
+            ):
+                if not isinstance(entry, dict):
+                    raise ValueError("Invalid scope configuration")
+                entry = entry.get(scope, {})
+            entry = entry or None
+            if entry is None:
+                raise DomainError(
+                    "IMPORT_PROFILE_NOT_CONFIGURED",
+                    "Operator-reviewed mapping profile required",
+                    409,
+                )
+            profile = MappingProfile.model_validate(entry)
+        except (ValueError, TypeError):
+            raise DomainError(
+                "IMPORT_CONFIGURATION_INVALID", "Operator must correct import configuration", 503
+            ) from None
+        try:
+            invoice = normalize(body.vendor_payload, profile)
+        except MappingError as exc:
+            raise DomainError(str(exc), "Vendor payload could not be mapped safely", 422) from None
+        document, duplicate = submit(db, credential, invoice, idempotency_key)
+        if not duplicate:
+            record(
+                db,
+                credential,
+                "connector.imported",
+                document,
+                {
+                    "software_id": software_id,
+                    "profile_id": body.profile_id,
+                    "evidence_reference": profile.evidence_reference,
+                },
+            )
+        return {**serialize_document(document), "duplicate": duplicate, "software_id": software_id}
 
     @app.get("/v1/documents")
     def list_documents(

@@ -33,3 +33,7 @@ Based on the CBIN Technical Product, Research and Delivery Scope, October 2026, 
 4. Add schema migrations, observability/alerts, gateway controls, audit export, backup restore and production security review.
 5. Onboard one authorized anchor seller/buyer pair and measure the four-week pilot.
 6. Expand vendor/sector coverage only with discovery evidence and approved contracts.
+
+## Expanded software discovery scope
+
+The complete observed Fiscal Harmony catalogue is now tracked in [Fiscal Harmony coverage](fiscal-harmony-coverage.md): 34 entries, including separate editions and non-accounting products. Every entry can use the shared reviewed structured-import route. Native capture and buyer-posting integrations remain individually tracked and must pass real sandbox validation. The wider discovery scope does not remove the original Odoo/Zoho pilot gate.

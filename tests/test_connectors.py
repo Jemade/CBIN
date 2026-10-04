@@ -125,3 +125,41 @@ def test_webhook_registration_rbac_and_url_validation(system):
             ).status_code
             == 422
         )
+
+
+def test_webhook_dead_letters_do_not_spawn_recursive_notifications(system, invoice):
+    from sqlalchemy import func, select
+
+    from cbin.db import Job
+    from cbin.worker import Worker
+
+    app, client, keys, settings = system
+    client.post(
+        "/v1/webhook-endpoints",
+        json={"url": "https://receiver.example/events", "secret_ref": "CBIN_WEBHOOK_TEST"},
+        headers=headers(keys, "buyer:admin"),
+    )
+    assert client.post("/v1/documents", json=invoice, headers=headers(keys)).status_code == 202
+    instance = Worker(settings, app.state.sessions)
+    # No egress approval: every webhook must exhaust bounded attempts without recursive jobs.
+    with app.state.sessions() as db:
+        initial = db.scalar(select(func.count()).select_from(Job).where(Job.kind == "webhook"))
+        assert initial == 3
+    for _ in range(100):
+        with app.state.sessions.begin() as db:
+            for job in db.scalars(select(Job).where(Job.state == "pending")):
+                job.available_at = 0
+        if not instance.run_once():
+            break
+    else:
+        raise AssertionError("Queue did not drain")
+    with app.state.sessions() as db:
+        assert db.scalar(select(func.count()).select_from(Job).where(Job.kind == "webhook")) == 4
+        assert (
+            db.scalar(
+                select(func.count())
+                .select_from(Job)
+                .where(Job.kind == "webhook", Job.state == "dead_letter")
+            )
+            == 4
+        )

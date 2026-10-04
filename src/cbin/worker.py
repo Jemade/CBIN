@@ -157,7 +157,14 @@ class Worker:
                 record(db, actor, "posting.ambiguous", document, {"job_id": job.id, "code": code})
             elif job.attempts >= self.settings.max_attempts:
                 job.state = "dead_letter"
-                record(db, actor, "job.dead_letter", document, {"job_id": job.id, "code": code})
+                record(
+                    db,
+                    actor,
+                    "job.dead_letter",
+                    document,
+                    {"job_id": job.id, "code": code},
+                    notify=job.kind != "webhook",
+                )
             else:
                 job.state = "pending"
                 job.available_at = now() + min(3600, 2**job.attempts * 5) + random.randint(0, 5)

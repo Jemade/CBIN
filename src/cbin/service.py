@@ -47,7 +47,7 @@ def enqueue(db, environment, kind, payload, unique_key, document_id=None):
     return job
 
 
-def record(db, credential, kind, document=None, data=None):
+def record(db, credential, kind, document=None, data=None, notify=True):
     event = AuditEvent(
         environment=credential.environment,
         document_id=document.id if document else None,
@@ -59,7 +59,7 @@ def record(db, credential, kind, document=None, data=None):
     )
     db.add(event)
     db.flush()
-    if document:
+    if document and notify:
         endpoints = db.scalars(
             select(WebhookEndpoint).where(
                 WebhookEndpoint.environment == credential.environment,

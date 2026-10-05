@@ -115,3 +115,7 @@ Design references: [Dribbble accounts payable operations](https://dribbble.com/s
 ## Buyer bookkeeping
 
 The buyer can search accounting records by name, allocate each invoice line to a purchase account, select tax codes and review a balanced proposed entry before approving a bill. Approved choices can be remembered for future invoices from that supplier. Optional purchase-order checks compare the supplier, currency and total. Sandbox records are labelled; the Zoho test adapter fetches real organization references. See [the bookkeeping guide](docs/BOOKKEEPING.md) for configuration, limitations, the additive database upgrade and full test commands.
+
+## Private hosted demonstration
+
+`python -m cbin.demo` starts an isolated, single-process test demonstration with an automatic outbox worker and three synthetic seller invoices. Set `CBIN_DEMO_ACCESS_KEY` to a strong random secret and keep `CBIN_ENVIRONMENT=test`. Open `https://YOUR-DEMO-HOST/#demo=YOUR_PRIVATE_ACCESS_KEY` to load role controls. The fragment is removed after exchanging it for short-lived in-memory business credentials; it never reaches ordinary HTTP access logs. The demo has no real ERP connection, no public reset/drain endpoints, and no access to a business database. All data and business credentials reset on process restart. Reopen the original private link after restarting or refreshing. This entrypoint is for demonstrations only, not the PostgreSQL multi-process business deployment.

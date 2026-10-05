@@ -46,6 +46,33 @@ const date = (v: string | number) =>
 const money = (n: number, c: string) =>
   `${c} ${(n / 100).toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 function App() {
+  const [demoWorkspaces, setDemoWorkspaces] = useState<Record<
+    Mode,
+    string
+  > | null>(null);
+  useEffect(() => {
+    const access = new URLSearchParams(window.location.hash.slice(1)).get(
+      "demo",
+    );
+    if (!access) return;
+    const controller = new AbortController();
+    fetch("/__demo/session", {
+      headers: { "X-Demo-Access": access },
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) throw Error("Demo access unavailable");
+        return response.json();
+      })
+      .then((result) => {
+        setDemoWorkspaces(result.workspaces);
+        history.replaceState(null, "", location.pathname + location.search);
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) setError(error.message);
+      });
+    return () => controller.abort();
+  }, []);
   const [token, setToken] = useState(""),
     [key, setKey] = useState(""),
     [connecting, setConnecting] = useState(false),
@@ -356,9 +383,37 @@ function App() {
         .toLowerCase()
         .includes(query.toLowerCase()),
   );
+  const demoControls = demoWorkspaces && (
+    <div className="demo-controls">
+      <strong>Demonstration</strong>
+      <span>
+        Synthetic invoices · simulated ledger · resets on service restart
+      </span>
+      {(["Seller", "Buyer", "CBIN"] as Mode[]).map((role) => (
+        <button
+          key={role}
+          type="button"
+          onClick={() => {
+            setSelected(null);
+            setSession(null);
+            setDocs([]);
+            setOffset(0);
+            setPage("Documents");
+            setError("");
+            setNotice("");
+            setConnecting(true);
+            setToken(demoWorkspaces[role]);
+          }}
+        >
+          Open {role}
+        </button>
+      ))}
+    </div>
+  );
   if (!session)
     return (
       <div className="connection-page">
+        {demoControls}
         <header>
           <span className="wordmark">COREBRIDGE</span>
           <span>Business exchange</span>
@@ -415,6 +470,7 @@ function App() {
     );
   return (
     <div className="workspace-app">
+      {demoControls}
       <header className="workspace-header">
         <div>
           <span className="wordmark">COREBRIDGE</span>

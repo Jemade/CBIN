@@ -962,3 +962,6 @@ label.remember-choice {
     gap: 6px;
   }
 }
+.demo-controls { display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:14px 24px; background:#eef2f6; border-bottom:1px solid #cbd5e1; font-size:14px; }
+.demo-controls span { margin-right:auto; color:#475569; }
+.demo-controls button { border:1px solid #94a3b8; border-radius:4px; background:#fff; padding:8px 12px; }

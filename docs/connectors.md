@@ -2,7 +2,7 @@
 
 ## Test ledger
 
-Set `CBIN_CONNECTOR_CONFIG='{"CBIN-DEMO-BUYER":{"type":"sandbox"}}'` in the worker. The deterministic `sandbox:` reference proves workflow/retry behavior only. It is not a vendor integration.
+Set `CBIN_CONNECTOR_CONFIG='{"CBIN-DEMO-BUYER":{"type":"sandbox"}}'` in both API and worker. The deterministic `sandbox:` reference proves workflow/retry behavior only. It is not a vendor integration.
 
 ## Odoo 18 seller capture prototype
 
@@ -24,7 +24,7 @@ Official reference: https://www.odoo.com/documentation/18.0/developer/reference/
 
 The worker's Zoho adapter uses the Bills API and external OAuth token provisioning. It performs exact reference lookup before a write, maps supplier/SKUs/account/tax/currency explicitly, checks a returned draft status and verifies returned grand total. Recovery fetches the matching bill and checks supplier, currency, total and draft state. Mismatches become reconciliation exceptions, never success.
 
-Example worker-only configuration (placeholders are not usable credentials):
+Example shared API/worker configuration (placeholders are not usable credentials):
 
 ```json
 {
@@ -52,3 +52,7 @@ Official reference: https://www.zoho.com/books/api/v3/bills/
 ## Sandbox acceptance criteria
 
 Run a real Odoo-to-CBIN-to-Zoho path with a buyer reviewer. Verify every field and tax amount, draft status, currency behavior, duplicate source events, lost response after bill creation, expiry/revocation of tokens, provider failures and manual reconciliation. Keep evidence and provider bill IDs. Unit tests with a mocked HTTP transport do not substitute for these checks.
+
+## Odoo 18 buyer and portal capture adapter
+
+`cbin.connectors.odoo.OdooAdapter` implements authenticated, company-scoped JSON-RPC reference lookup, posted seller invoice listing, addon export and draft vendor bill creation. Configure both API and worker with `examples/odoo-connector-config.json`, passwords in their named environment variables, and exact base URLs in `CBIN_ERP_ALLOWLIST`. Recovery checks the selected line products/accounts/taxes and invoice values, not just the grand total. HTTP transport contract tests pass; a real Odoo instance has not been exercised. Use [the two-machine acceptance procedure](TWO-MACHINE-PILOT.md) before certifying the adapter.

@@ -98,6 +98,15 @@ class AccountMove(models.Model):
                 )
         return result
 
+    def cbin_export_payload(self):
+        """Public read-only RPC endpoint; normal record permissions still apply."""
+        self.ensure_one()
+        self.check_access_rights("read")
+        self.check_access_rule("read")
+        if self.state != "posted" or self.move_type != "out_invoice":
+            raise ValueError("Only posted customer invoices can be exchanged")
+        return self._cbin_payload()
+
     def _cbin_payload(self):
         self.ensure_one()
         if Decimal(str(self.currency_id.rounding)) != Decimal("0.01"):

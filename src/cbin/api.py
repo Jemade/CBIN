@@ -177,6 +177,102 @@ def create_app(settings=None):
         document, duplicate = submit(db, credential, invoice, idempotency_key)
         return {**serialize_document(document), "duplicate": duplicate}
 
+    @app.get("/v1/me")
+    def current_workspace(credential=Depends(authenticate), db=Depends(session)):
+        business = db.get(Business, credential.business_id)
+        return {
+            "business": {"id": business.id, "name": business.name, "tin": business.tin},
+            "role": credential.role,
+            "environment": credential.environment,
+        }
+
+    @app.get("/v1/seller/import-profiles")
+    def seller_import_profiles(credential=Depends(authenticate)):
+        if credential.role not in {"submitter", "admin"}:
+            raise DomainError("FORBIDDEN", "Seller submitter or administrator required", 403)
+        entries = (
+            json.loads(os.getenv("CBIN_IMPORT_PROFILES") or "{}")
+            .get(credential.environment, {})
+            .get(credential.business_id, {})
+        )
+        return {
+            "items": [
+                {
+                    "software_id": software,
+                    "profile_id": ident,
+                    "evidence_reference": profile.get("evidence_reference"),
+                }
+                for software, profiles in entries.items()
+                for ident, profile in profiles.items()
+                if profile.get("reviewed") and software_by_id(software)
+            ]
+        }
+
+    @app.get("/v1/seller/source-documents")
+    def seller_source_documents(credential=Depends(authenticate), db=Depends(session)):
+        from cbin.connectors.base import ConnectorError
+        from cbin.connectors.registry import adapter_for
+
+        if credential.role not in {"submitter", "admin"}:
+            raise DomainError("FORBIDDEN", "Seller submitter or administrator required", 403)
+        adapter = None
+        try:
+            adapter = adapter_for(credential.business_id, credential.environment)
+            if not hasattr(adapter, "source_documents"):
+                raise ConnectorError("SOURCE_LOOKUP_NOT_IMPLEMENTED")
+            items = adapter.source_documents()
+            existing_by_reference = {
+                row.external_reference: row
+                for row in db.scalars(
+                    select(Document).where(
+                        Document.environment == credential.environment,
+                        Document.seller_id == credential.business_id,
+                        Document.external_reference.in_([item["reference"] for item in items]),
+                    )
+                )
+            }
+            for item in items:
+                existing = existing_by_reference.get(item["reference"])
+                item["exchange_id"] = existing.id if existing else None
+                item["exchange_status"] = existing.status if existing else None
+            return {"items": items}
+        except ConnectorError as exc:
+            raise DomainError("SOURCE_UNAVAILABLE", str(exc), 503, True) from None
+        finally:
+            if adapter and hasattr(adapter, "close"):
+                adapter.close()
+
+    @app.post("/v1/seller/source-documents/{source_id}/send", status_code=202)
+    def send_source_document(source_id: str, credential=Depends(authenticate), db=Depends(session)):
+        from cbin.connectors.base import ConnectorError
+        from cbin.connectors.registry import adapter_for, connection_fingerprint
+
+        if credential.role not in {"submitter", "admin"}:
+            raise DomainError("FORBIDDEN", "Seller submitter or administrator required", 403)
+        if not source_id.isdigit() or len(source_id) > 15:
+            raise DomainError("INVALID_SOURCE_ID", "Select a source invoice", 422)
+        adapter = None
+        try:
+            adapter = adapter_for(credential.business_id, credential.environment)
+            if not hasattr(adapter, "source_invoice"):
+                raise ConnectorError("SOURCE_LOOKUP_NOT_IMPLEMENTED")
+            invoice = adapter.source_invoice(source_id)
+            document, duplicate = submit(
+                db,
+                credential,
+                invoice,
+                "source:"
+                + connection_fingerprint(credential.business_id, credential.environment)
+                + ":"
+                + source_id,
+            )
+            return {**serialize_document(document), "duplicate": duplicate}
+        except ConnectorError as exc:
+            raise DomainError("SOURCE_UNAVAILABLE", str(exc), 503, True) from None
+        finally:
+            if adapter and hasattr(adapter, "close"):
+                adapter.close()
+
     @app.get("/v1/connectors")
     def list_connectors(credential=Depends(authenticate)):
         return catalogue()
@@ -240,12 +336,18 @@ def create_app(settings=None):
     def list_documents(
         external_reference: str | None = Query(None, max_length=120),
         status: str | None = Query(None, max_length=30),
+        direction: str | None = Query(None, pattern="^(incoming|outgoing)$"),
         offset: int = Query(0, ge=0, le=100000),
         limit: int = Query(50, ge=1, le=100),
         credential=Depends(authenticate),
         db=Depends(session),
     ):
         query = select(Document).where(*visible(credential))
+        if direction:
+            query = query.where(
+                (Document.buyer_id if direction == "incoming" else Document.seller_id)
+                == credential.business_id
+            )
         if external_reference:
             query = query.where(Document.external_reference == external_reference)
         if status:
@@ -253,7 +355,27 @@ def create_app(settings=None):
         docs = db.scalars(
             query.order_by(Document.created_at.desc(), Document.id).offset(offset).limit(limit)
         ).all()
-        return {"items": [serialize_document(d) for d in docs], "offset": offset, "limit": limit}
+        identities = {ident for doc in docs for ident in (doc.seller_id, doc.buyer_id)}
+        names = {
+            row.id: row.name
+            for row in db.scalars(
+                select(Business).where(
+                    Business.environment == credential.environment, Business.id.in_(identities)
+                )
+            )
+        }
+        return {
+            "items": [
+                {
+                    **serialize_document(d),
+                    "seller_name": names.get(d.seller_id),
+                    "buyer_name": names.get(d.buyer_id),
+                }
+                for d in docs
+            ],
+            "offset": offset,
+            "limit": limit,
+        }
 
     @app.get("/v1/documents/{document_id}")
     def read_document(document_id: str, credential=Depends(authenticate), db=Depends(session)):
@@ -263,6 +385,8 @@ def create_app(settings=None):
         ).all()
         return {
             **serialize_document(document),
+            "seller_name": db.get(Business, document.seller_id).name,
+            "buyer_name": db.get(Business, document.buyer_id).name,
             "timeline": [
                 {"id": e.id, "kind": e.kind, "created_at": e.created_at, "data": e.data}
                 for e in events

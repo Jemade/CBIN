@@ -131,4 +131,4 @@ def test_mapping_never_repairs_missing_fields_or_mismatched_totals(invoice):
 
 def test_no_entry_claims_live_posting():
     assert all(not row["live_verified"] for row in catalogue()["items"])
-    assert sum(row["native_adapter"] is not None for row in catalogue()["items"]) == 1
+    assert sum(row["native_adapter"] is not None for row in catalogue()["items"]) == 2

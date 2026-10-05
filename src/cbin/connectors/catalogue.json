@@ -367,9 +367,9 @@
         "Cloud",
         "Self-hosted"
       ],
-      "cbin_capture_status": "prototype",
-      "cbin_posting_status": "not_implemented",
-      "native_adapter": null,
+      "cbin_capture_status": "test_prototype",
+      "cbin_posting_status": "test_prototype",
+      "native_adapter": "odoo18",
       "live_verified": false
     },
     {

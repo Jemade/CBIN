@@ -2,7 +2,7 @@
 
 Corebridge Business Interoperability Network is a vendor-neutral B2B transaction exchange. A seller submits a structured invoice from their existing software, a buyer reviews it, and a durable job queues the accepted document for a draft bill in the buyer's system.
 
-**Status: runnable development MVP, not production-ready.** The test workflow runs end to end with an explicitly simulated ledger. Odoo capture and Zoho posting are integration prototypes requiring sandbox validation. CBIN does not replace a POS, accounting ledger, fiscal device or ZIMRA's tax channel.
+**Status: runnable development MVP, not production-ready.** The test workflow runs end to end with an explicitly simulated ledger. Odoo 18 capture/posting and Zoho Books posting are test integration prototypes requiring actual vendor validation. CBIN does not replace a POS, accounting ledger, fiscal device or ZIMRA's tax channel.
 
 ## Included
 
@@ -14,7 +14,7 @@ Corebridge Business Interoperability Network is a vendor-neutral B2B transaction
 - Database-backed transactional outbox, atomic leases, attempt history, backoff and dead letters.
 - Lookup-only reconciliation for uncertain ledger writes; no blind posting retries.
 - Signed, stable-ID webhook events, cursor-paginated recovery log and exact operator egress allowlist.
-- Buyer portal and operator job view. Credentials stay in browser memory.
+- Separate seller, buyer and CBIN operator workspaces. Credentials stay in browser memory.
 - Durable offline connector spool and an Odoo 18 outbound addon with cron disabled by default.
 - Zoho Books draft bill adapter, tax/currency mappings and timeout recovery, gated to test mode.
 - Catalogue of all 34 observed Fiscal Harmony entries, visible connector statuses and tenant-scoped reviewed JSON import mappings.
@@ -58,7 +58,7 @@ curl -X POST http://localhost:8000/v1/documents \
   --data-binary @examples/invoice.json
 ```
 
-Connect the buyer credential in the portal. After the worker delivers the invoice, map `SKU-CABLE` to a buyer product reference, supply supplier/account references, then accept. Refresh after the worker processes posting. A `sandbox:` reference means **simulation only**, with no real ERP changes.
+Connect the buyer credential in the portal. After the worker delivers the invoice, select the supplier, accounting item, purchase account and tax from the dropdown lists, review the proposed entry, then approve. Refresh after the worker processes posting. A `sandbox:` reference means **simulation only**, with no real ERP changes.
 
 ## Docker / PostgreSQL
 
@@ -84,6 +84,9 @@ CI repeats tests against SQLite and PostgreSQL. To run the same suite against a 
 
 ## Documentation
 
+- [MVP stack and mechanism audit](docs/MVP-AUDIT.md)
+- [Two-machine pilot and click-only bookkeeping](docs/TWO-MACHINE-PILOT.md)
+
 - [Architecture and contracts](docs/architecture.md)
 - [Connector setup and integration limits](docs/connectors.md)
 - [All 34 observed Fiscal Harmony products and mapping setup](docs/fiscal-harmony-coverage.md)
@@ -105,7 +108,7 @@ npm run build
 cd ..
 ```
 
-Docker builds the frontend automatically. For frontend development, run the API on port 8000 and `npm run dev` in `frontend`; Vite proxies API requests to the backend. The browser starts in an explicitly labelled sample workspace. Connect with an API credential to load tenant-scoped documents, inspect invoices, submit buyer decisions and view audit events. Credentials stay in memory only. Dashboard counts describe the current page, and software catalogue entries disclose prototype and validation status.
+Docker builds the frontend automatically. For frontend development, run the API on port 8000 and `npm run dev` in `frontend`; Vite proxies API requests to the backend. The browser starts at the credential connection form. Connect with an API credential to load tenant-scoped documents, inspect invoices, submit buyer decisions and view audit events. Credentials stay in memory only. Document counts describe the current page, and software catalogue entries disclose prototype and validation status.
 
 Design references: [Dribbble accounts payable operations](https://dribbble.com/shots/27640759-SparkOffice-AP-Account-Payables-Management-Dashboard), [Pinterest invoice dashboard](https://www.pinterest.com/pin/invoices-dashboard--545005992391488039/), and [Rara Business](https://rarathemes.com/wordpress-themes/rara-business/). These inform hierarchy, density, spacing and responsive structure; the frontend is an original implementation.
 

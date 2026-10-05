@@ -1,0 +1,22 @@
+{
+  "CBIN-DEMO-SELLER": {
+    "type": "odoo18",
+    "base_url": "https://seller-odoo.example.test",
+    "database": "YOUR_SELLER_TEST_DATABASE",
+    "username": "YOUR_SELLER_INTEGRATION_USER",
+    "password_env": "CBIN_ODOO_SELLER_PASSWORD",
+    "company_id": 1,
+    "currency_ids": {"USD": 2},
+    "currency_exponents": {"USD": 2}
+  },
+  "CBIN-DEMO-BUYER": {
+    "type": "odoo18",
+    "base_url": "https://buyer-odoo.example.test",
+    "database": "YOUR_BUYER_TEST_DATABASE",
+    "username": "YOUR_BUYER_INTEGRATION_USER",
+    "password_env": "CBIN_ODOO_BUYER_PASSWORD",
+    "company_id": 1,
+    "currency_ids": {"USD": 2},
+    "currency_exponents": {"USD": 2}
+  }
+}

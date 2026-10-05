@@ -43,5 +43,11 @@ jobs:
       - run: npm run test:e2e
         if: matrix.database == 'sqlite'
         working-directory: frontend
+      - run: docker compose -f compose.yaml -f compose.pilot.yaml config --quiet
+        if: matrix.database == 'sqlite'
+        env:
+          CBIN_DB_PASSWORD: configuration-test-only
+          CBIN_CREDENTIAL_PEPPER: configuration-test-only-pepper-xxxxxxxxxxxxxxxx
+          CBIN_PILOT_HOST: 127.0.0.1
       - run: docker build -t cbin:test .
         if: matrix.database == 'sqlite'

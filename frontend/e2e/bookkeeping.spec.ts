@@ -1,14 +1,11 @@
 import { test, expect, type Page } from "@playwright/test";
 async function select(page: Page, label: string, name: string) {
   const field = page.getByRole("combobox", { name: label, exact: true });
-  await field.fill(name);
+  await field.click();
   await page.getByRole("option", { name: new RegExp(name) }).click();
 }
 async function connect(page: Page, key: string) {
   await page.goto("/");
-  await page
-    .getByRole("button", { name: "Connect workspace", exact: true })
-    .click();
   await page.getByLabel("Business credential").fill(key);
   await page.getByRole("button", { name: "Connect securely" }).click();
 }
@@ -60,7 +57,9 @@ test("buyer records purchase, previews entry, posts once and reuses approved map
   await expect(
     page.getByRole("heading", { name: "Proposed accounting entry" }),
   ).toBeVisible();
-  await expect(page.getByText("USD 230.00", { exact: true })).toBeVisible();
+  await expect(
+    page.locator(".entry-preview").getByText("USD 230.00", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText(/Purchase order header matched/)).toBeVisible();
   // Changing an allocation invalidates the reviewed preview before approval.
   await select(page, "Purchase account · line 1", "Equipment");
@@ -154,7 +153,7 @@ test("missing accounting connection shows an error and does not invent reference
       .getByRole("alert")
       .filter({ hasText: "Accounting reference lookup unavailable" }),
   ).toBeVisible();
-  await expect(page.getByRole("combobox")).toHaveCount(0);
+  await expect(page.getByRole("dialog").getByRole("combobox")).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Approve & queue bill" }),
   ).toHaveCount(0);

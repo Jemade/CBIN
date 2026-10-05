@@ -1,0 +1,16 @@
+# Isolated test pilot: the app/database remain private; Caddy provides LAN HTTPS.
+services:
+  proxy:
+    image: caddy:2-alpine
+    ports:
+      - "${CBIN_PILOT_BIND:-127.0.0.1}:8443:8443"
+    environment:
+      CBIN_PILOT_HOST: ${CBIN_PILOT_HOST:?Set hostname or private IP of the pilot host}
+    volumes:
+      - ./deploy/Caddyfile.pilot:/etc/caddy/Caddyfile:ro
+      - pilot-caddy-data:/data
+      - pilot-caddy-config:/config
+    depends_on: [api]
+volumes:
+  pilot-caddy-data:
+  pilot-caddy-config:

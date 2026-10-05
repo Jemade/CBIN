@@ -14,6 +14,7 @@ The user can select a different account for each line, covering expenses, invent
 
 - Sandbox: explicitly labelled simulation records, available only in the test environment.
 - Zoho Books: active suppliers, eligible purchase accounts, active items and tax records fetched from the configured organization. Lists are paginated. The portal never substitutes demo records when a real lookup fails.
+- Odoo 18: active suppliers, products, eligible company accounts and percentage purchase taxes from the configured test database. Creates and reconciles draft vendor bills; no purchase-order lookup. See [the pilot setup](TWO-MACHINE-PILOT.md).
 - Other catalogue entries: accounting reference lookup is not implemented yet.
 
 References are cached for 15 minutes, scoped to the buyer and connection. “Refresh records” requests an updated snapshot. Zoho needs OAuth read permissions for contacts, chart of accounts, items and settings; purchase-order read access is needed when the optional lookup is enabled. Existing bill creation/read permissions are still required for posting and recovery.
@@ -44,10 +45,10 @@ The optional check compares supplier, currency and invoice total with the select
 With the existing database/environment/pepper configured, run:
 
 ```sh
-cbin migrate-bookkeeping
+cbin migrate-mvp
 ```
 
-This additive, repeatable command creates the two new bookkeeping tables. It does not drop or modify existing documents. Fresh databases include the tables through `cbin init-db`.
+This additive, repeatable command creates the two bookkeeping tables and tenant document-page indexes. It does not drop or modify existing documents. Fresh databases include the tables through `cbin init-db`.
 
 ## Run the full checks
 
@@ -69,3 +70,5 @@ Activate your Python virtual environment before the browser tests, or set `CBIN_
 CI runs the backend suite against SQLite and PostgreSQL, then runs the browser suite and Docker build on the SQLite job. Provider contract tests mock Zoho HTTP responses. Passing these checks does not substitute for running against an actual Zoho test organization.
 
 Reference documentation: [Zoho contacts](https://www.zoho.com/books/api/v3/contacts/), [chart of accounts](https://www.zoho.com/books/api/v3/chart-of-accounts/), [items](https://www.zoho.com/books/api/v3/items/), [taxes](https://www.zoho.com/books/api/v3/taxes/), [purchase orders](https://www.zoho.com/books/api/v3/purchase-order/), [bills](https://www.zoho.com/books/api/v3/bills/), and [Playwright web server](https://playwright.dev/docs/test-webserver).
+
+The supplier/item/account/tax fields open browseable lists on click. **Show more records** exposes additional entries without typing; searching remains optional. Login/setup credentials are entered once per session, but invoice fields and bookkeeping references do not require typing.

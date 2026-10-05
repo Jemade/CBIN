@@ -1,6 +1,10 @@
 .git
 .venv
 .env
+.env.pilot
+.pilot
+frontend/test-results
+frontend/playwright-report
 *.db
 __pycache__
 .pytest_cache

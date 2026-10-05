@@ -1,4 +1,14 @@
-from sqlalchemy import JSON, Boolean, Integer, String, Text, UniqueConstraint, create_engine, event
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    create_engine,
+    event,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 
@@ -40,7 +50,11 @@ class Document(Base):
     status: Mapped[str] = mapped_column(String(30))
     created_at: Mapped[int] = mapped_column(Integer)
     posted_reference: Mapped[str | None] = mapped_column(String(150), nullable=True)
-    __table_args__ = (UniqueConstraint("environment", "seller_id", "fingerprint"),)
+    __table_args__ = (
+        UniqueConstraint("environment", "seller_id", "fingerprint"),
+        Index("ix_document_seller_page", "environment", "seller_id", "created_at", "id"),
+        Index("ix_document_buyer_page", "environment", "buyer_id", "created_at", "id"),
+    )
 
 
 class Idempotency(Base):

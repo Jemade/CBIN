@@ -2,6 +2,7 @@ import json
 import os
 
 from cbin.connectors.base import ConnectorError
+from cbin.connectors.odoo import OdooAdapter
 from cbin.connectors.sandbox import SandboxAdapter
 from cbin.connectors.zoho import ZohoBooksAdapter
 
@@ -13,6 +14,8 @@ def adapter_for(business_id, environment):
         raise ConnectorError("CONNECTOR_NOT_CONFIGURED")
     if entry["type"] == "sandbox" and environment == "test":
         return SandboxAdapter()
+    if entry["type"] == "odoo18" and environment == "test":
+        return OdooAdapter(entry)
     if entry["type"] == "zoho" and environment == "test":
         return ZohoBooksAdapter(entry)
     # Live ledger posting is deliberately gated until sandbox reconciliation is validated.

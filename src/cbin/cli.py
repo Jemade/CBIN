@@ -9,6 +9,7 @@ from cbin.db import (
     Business,
     BuyerMapping,
     Credential,
+    Document,
     initialize,
     make_database,
 )
@@ -40,6 +41,7 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("init-db")
     sub.add_parser("migrate-bookkeeping")
+    sub.add_parser("migrate-mvp")
     sub.add_parser("demo")
     business = sub.add_parser("add-business")
     business.add_argument("id")
@@ -63,9 +65,12 @@ def main():
     args = parser.parse_args()
     settings = Settings.from_env()
     engine, sessions = make_database(settings.database_url)
-    if args.command == "migrate-bookkeeping":
+    if args.command in {"migrate-bookkeeping", "migrate-mvp"}:
         for table in (AccountingSnapshot.__table__, BuyerMapping.__table__):
             table.create(engine, checkfirst=True)
+        if args.command == "migrate-mvp":
+            for index in Document.__table__.indexes:
+                index.create(engine, checkfirst=True)
         print("Bookkeeping tables ready")
         return
     if args.command == "init-db":
@@ -94,8 +99,8 @@ def main():
                 )
             db.flush()
             keys = [
-                provision(db, settings, "CBIN-DEMO-SELLER", "admin"),
-                provision(db, settings, "CBIN-DEMO-BUYER", "admin"),
+                provision(db, settings, "CBIN-DEMO-SELLER", "submitter"),
+                provision(db, settings, "CBIN-DEMO-BUYER", "reviewer"),
                 provision(db, settings, "CBIN-DEMO-BUYER", "operator"),
             ]
             print(

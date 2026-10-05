@@ -4,7 +4,7 @@ Checked 4 October 2026. Source: https://fiscalharmony.co.zw/products/fiscalisati
 
 The public integration page advertises 30+ applications. Its embedded catalogue currently contains **34 entries**. This includes accounting software, ERP, POS, a spreadsheet, e-commerce and a database, plus separately listed product editions. It is not a list of 34 distinct accounting vendors. Names below preserve the observed catalogue; a listing does not establish CBIN read/write access, contractual permission or a tested integration.
 
-All 34 are registered in the CBIN software catalogue and can use the shared reviewed structured-import route. Each installation still needs its own confirmed field mapping and authorized source extraction. Only Odoo 18 seller capture and Zoho Books buyer posting have repository prototypes; there are no live-verified integrations.
+All 34 are registered in the CBIN software catalogue and can use the shared reviewed structured-import route. Each installation still needs its own confirmed field mapping and authorized source extraction. Only Odoo 18 seller capture/buyer posting and Zoho Books buyer posting have repository prototypes; there are no live-verified integrations.
 
 | ID | Observed product | Category | CBIN native status |
 | --- | --- | --- | --- |
@@ -37,7 +37,7 @@ All 34 are registered in the CBIN software catalogue and can use the shared revi
 | `intellectpos` | Sales Intellect POS | POS | Native connector pending |
 | `gaap` | GAAP Unity | POS | Native connector pending |
 | `odoo17` | Odoo v17 | ERP | Native connector pending |
-| `odoo18` | Odoo v18 | ERP | Seller capture prototype |
+| `odoo18` | Odoo v18 | ERP | Test capture/posting prototype |
 | `odoo19` | Odoo v19 | ERP | Native connector pending |
 | `odoocloud` | Odoo Cloud | ERP | Native connector pending |
 | `salesplay` | Sales Play | POS | Native connector pending |
@@ -138,3 +138,7 @@ Mapping paths read dictionary keys separated by dots. Transforms are declarative
 - https://support.fiscalharmony.co.zw/portal/en/kb/articles/tax-mapping-in-fiscal-harmony-checks-and-integration-guides distinguishes tax setup by integration.
 
 The catalogue includes an observed source hash for change tracking. Descriptions, branding assets and proprietary plugin code were not copied into CBIN. Additional names mentioned elsewhere, such as Wingate, are not silently substituted for entries in this particular 34-item snapshot.
+
+## Automated coverage evidence
+
+Every catalogue ID is parametrized through reviewed mapping, submission, durable routing, buyer approval and Sandbox posting in `tests/test_odoo.py`. The inputs are canonical test fixtures under an explicit protocol-test mapping. This proves the common CBIN mechanism for all 34 IDs, not extraction from those 34 products or native posting into them. No row is live-verified. Exact vendor samples, credentials, supported editions and sandbox acceptance evidence are still required for each row above.

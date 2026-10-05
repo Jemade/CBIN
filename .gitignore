@@ -15,3 +15,5 @@ frontend/*.tsbuildinfo
 src/cbin/portal/
 frontend/test-results/
 frontend/playwright-report/
+.env.pilot
+.pilot/

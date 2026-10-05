@@ -8,6 +8,7 @@ from pathlib import Path
 import uvicorn
 from sqlalchemy import select
 
+import cbin.connectors.registry as registry
 from cbin.api import create_app
 from cbin.cli import provision
 from cbin.config import Settings
@@ -23,6 +24,33 @@ settings = Settings(
 os.environ["CBIN_CONNECTOR_CONFIG"] = json.dumps({"buyer": {"type": "sandbox"}})
 app = create_app(settings)
 keys = {}
+source_payload = {}
+
+
+class SourceAdapter(SandboxAdapter):
+    """Test fixture only: production source records must come from the seller's ERP."""
+
+    def source_documents(self):
+        return [
+            {
+                "source_id": "1",
+                "reference": "BROWSER-001",
+                "issued_at": "2026-10-04",
+                "amount": "230.00",
+                "currency": "USD",
+            }
+        ]
+
+    def source_invoice(self, ident):
+        from cbin.schemas import Invoice
+
+        return Invoice.model_validate(source_payload)
+
+
+original_adapter_for = registry.adapter_for
+registry.adapter_for = lambda business, environment: (
+    SourceAdapter() if business == "seller" else original_adapter_for(business, environment)
+)
 
 
 def reset():
@@ -44,7 +72,10 @@ def reset():
         db.flush()
         for name in ["seller", "buyer", "stranger"]:
             keys[name] = provision(db, settings, name, "admin")["key"]
-    return {
+        keys["seller_only"] = provision(db, settings, "seller", "submitter")["key"]
+        keys["buyer_only"] = provision(db, settings, "buyer", "reviewer")["key"]
+        keys["operator"] = provision(db, settings, "buyer", "operator")["key"]
+    result = {
         "keys": keys,
         "invoice": {
             "document_type": "B2B_INVOICE",
@@ -65,6 +96,9 @@ def reset():
             "totals": {"subtotal_minor": 20000, "tax_minor": 3000, "grand_total_minor": 23000},
         },
     }
+    source_payload.clear()
+    source_payload.update(result["invoice"])
+    return result
 
 
 @app.post("/__test/reset")

@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from "react";
-import type { Doc } from "./main";
+import type { Doc } from "./types";
 import demoReferences from "./demo-bookkeeping.json";
 
 type Ref = {
@@ -79,7 +79,8 @@ function SearchSelect({
   const id = useId(),
     [query, setQuery] = useState(""),
     [open, setOpen] = useState(false),
-    [active, setActive] = useState(0);
+    [active, setActive] = useState(0),
+    [shown, setShown] = useState(30);
   const chosen = options.find((o) => o.id === value),
     filtered = options
       .filter((o) =>
@@ -87,7 +88,7 @@ function SearchSelect({
           .toLowerCase()
           .includes(query.toLowerCase()),
       )
-      .slice(0, 30);
+      .slice(0, shown);
   function choose(o: Ref) {
     onChange(o.id);
     setOpen(false);
@@ -120,11 +121,13 @@ function SearchSelect({
             setOpen(true);
             setQuery("");
             setActive(0);
+            setShown(30);
           }}
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);
             setActive(0);
+            setShown(30);
           }}
           onBlur={() => setOpen(false)}
           onKeyDown={(e) => {
@@ -189,6 +192,16 @@ function SearchSelect({
               No matching records. Refresh accounting data if a record is
               missing.
             </p>
+          )}
+          {filtered.length === shown && (
+            <button
+              type="button"
+              className="show-more-records"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setShown(shown + 30)}
+            >
+              Show more records
+            </button>
           )}
         </div>
       )}

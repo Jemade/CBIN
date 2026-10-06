@@ -1,5 +1,7 @@
 """Odoo 18 test adapter: read master data, capture invoices, create draft vendor bills."""
 
+import base64
+import hashlib
 import json
 import os
 from decimal import Decimal
@@ -10,7 +12,7 @@ import httpx
 from pydantic import ValidationError
 
 from cbin.connectors.base import AmbiguousOutcome, ConnectorError
-from cbin.schemas import Invoice
+from cbin.schemas import AttachmentUpload, Invoice
 
 
 class OdooAdapter:
@@ -225,6 +227,58 @@ class OdooAdapter:
             return Invoice.model_validate(result)
         except ValidationError:
             raise ConnectorError("ODOO_SOURCE_PAYLOAD_INVALID") from None
+
+    def source_attachment(self, ident):
+        result = self.execute("account.move", "cbin_export_attachment", [[int(ident)]])
+        try:
+            return AttachmentUpload.model_validate(result)
+        except ValidationError:
+            raise ConnectorError("ODOO_SOURCE_ATTACHMENT_INVALID") from None
+
+    def attach_document(self, bill_reference, document_id, file, create_allowed=True):
+        name = f"CBIN-{document_id}-{file.sha256}.{file.filename.rsplit('.', 1)[-1]}"
+        expected = hashlib.sha1(file.content).hexdigest()  # Odoo's native attachment checksum.
+        domain = [
+            ["res_model", "=", "account.move"],
+            ["res_id", "=", int(bill_reference)],
+            ["name", "=", name],
+        ]
+
+        def lookup():
+            return self.execute(
+                "ir.attachment", "search_read", [domain], {"fields": ["checksum"], "limit": 2}
+            )
+
+        existing = lookup()
+        if existing:
+            if len(existing) != 1 or existing[0].get("checksum") != expected:
+                raise AmbiguousOutcome("ODOO_ATTACHMENT_MISMATCH")
+            return str(existing[0]["id"])
+        if not create_allowed:
+            raise AmbiguousOutcome("ODOO_ATTACHMENT_REQUIRES_RECONCILIATION")
+        ident = self.execute(
+            "ir.attachment",
+            "create",
+            [
+                {
+                    "name": name,
+                    "type": "binary",
+                    "res_model": "account.move",
+                    "res_id": int(bill_reference),
+                    "mimetype": file.media_type,
+                    "datas": base64.b64encode(file.content).decode("ascii"),
+                }
+            ],
+            write=True,
+        )
+        rows = lookup()
+        if (
+            len(rows) != 1
+            or rows[0].get("checksum") != expected
+            or str(rows[0]["id"]) != str(ident)
+        ):
+            raise AmbiguousOutcome("ODOO_ATTACHMENT_UNCONFIRMED")
+        return str(ident)
 
     def recover_from_timeout(self, document_id, invoice=None, mapping=None):
         rows = self.execute(

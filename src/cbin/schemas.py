@@ -11,12 +11,35 @@ class StrictModel(BaseModel):
 class Party(StrictModel):
     cbin_id: str = Field(min_length=1, max_length=40)
     tin: str = Field(min_length=1, max_length=40)
+    legal_name: str | None = Field(default=None, min_length=1, max_length=200)
+    address: str | None = Field(default=None, min_length=1, max_length=500)
+    vat_number: str | None = Field(default=None, min_length=1, max_length=80)
 
 
 class FiscalMetadata(StrictModel):
     device_serial: str = Field(min_length=1, max_length=100)
     zimra_signature: str = Field(min_length=1, max_length=2048)
     receipt_reference: str | None = Field(default=None, max_length=150)
+    device_id: str | None = Field(default=None, max_length=80)
+    fiscal_day: str | None = Field(default=None, max_length=80)
+    verification_code: str | None = Field(default=None, max_length=150)
+    verification_url: str | None = Field(default=None, max_length=2048)
+
+    @field_validator("verification_url")
+    @classmethod
+    def safe_verification_url(cls, value):
+        from urllib.parse import urlsplit
+
+        if value is not None:
+            url = urlsplit(value)
+            if (
+                url.scheme != "https"
+                or url.netloc != "fdms.zimra.co.zw"
+                or url.username
+                or url.password
+            ):
+                raise ValueError("Use the official HTTPS FDMS verification URL")
+        return value
 
 
 class Line(StrictModel):
@@ -111,3 +134,18 @@ class WebhookRegistration(StrictModel):
 
 class Replay(StrictModel):
     reason: str = Field(min_length=3, max_length=1000)
+
+
+class AttachmentUpload(StrictModel):
+    filename: str = Field(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9._ -]{0,119}$")
+    media_type: Literal["application/pdf", "image/png", "image/jpeg"]
+    content_base64: str = Field(min_length=1, max_length=1_400_000)
+
+
+class InvoicePackage(StrictModel):
+    invoice: Invoice
+    original: AttachmentUpload
+
+
+class CaptureConfirmation(StrictModel):
+    reviewed: Literal[True]

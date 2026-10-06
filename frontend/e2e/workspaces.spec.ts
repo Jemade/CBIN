@@ -109,3 +109,28 @@ test("isolated seller and buyer sessions complete the exchange with click-only b
     ]);
   }
 });
+
+test('invoice evidence downloads, upload and unsupported scanning have clear outcomes', async ({ page, request }) => {
+  const { keys } = await (await request.post('/__test/reset')).json();
+  const sent = await request.post('/v1/seller/source-documents/1/send', {headers: {Authorization: `Bearer ${keys.seller_only}`}});
+  const id = (await sent.json()).id;
+  await request.post('/__test/drain');
+  await connect(page, keys.seller_only);
+  await page.getByRole('button', {name: 'BROWSER-001', exact:true}).click();
+  const downloadEvent = page.waitForEvent('download');
+  await page.getByRole('button', {name:'A4 copy', exact:true}).click();
+  const download = await downloadEvent;
+  expect(download.suggestedFilename()).toBe('invoice-a4-copy.pdf');
+  const pdf = await request.get(`/v1/documents/${id}/print?layout=a4`, {headers:{Authorization:`Bearer ${keys.seller_only}`}});
+  expect(pdf.status()).toBe(200);
+  await page.getByLabel('Add original invoice or scan').setInputFiles({name:'test-original.pdf', mimeType:'application/pdf', buffer:await pdf.body()});
+  await expect(page.getByRole('button', {name:'test-original.pdf', exact:true})).toBeVisible();
+  await expect(page.getByText(/seller original/)).toBeVisible();
+  await page.getByRole('button', {name:'Close document'}).click();
+  await page.getByRole('button', {name:'Disconnect'}).click();
+  await connect(page, keys.buyer_only);
+  await page.getByLabel('Scan or upload invoice').setInputFiles({name:'scan.pdf', mimeType:'application/pdf', buffer:await pdf.body()});
+  await expect(page.getByRole('alert')).toContainText('Configure and test an extraction provider');
+  await page.getByRole('button', {name:'BROWSER-001', exact:true}).click();
+  await expect(page.getByRole('button', {name:'test-original.pdf', exact:true})).toBeVisible();
+});

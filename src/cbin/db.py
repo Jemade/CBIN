@@ -3,6 +3,7 @@ from sqlalchemy import (
     Boolean,
     Index,
     Integer,
+    LargeBinary,
     String,
     Text,
     UniqueConstraint,
@@ -159,3 +160,56 @@ class BuyerMapping(Base):
     environment: Mapped[str] = mapped_column(String(8))
     mapping: Mapped[dict] = mapped_column(JSON)
     updated_at: Mapped[int] = mapped_column(Integer)
+
+
+class InvoiceFile(Base):
+    __tablename__ = "invoice_files"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    document_id: Mapped[str] = mapped_column(String(40), index=True)
+    environment: Mapped[str] = mapped_column(String(8))
+    kind: Mapped[str] = mapped_column(String(30))
+    filename: Mapped[str] = mapped_column(String(150))
+    media_type: Mapped[str] = mapped_column(String(80))
+    sha256: Mapped[str] = mapped_column(String(64))
+    content: Mapped[bytes] = mapped_column(LargeBinary)
+    created_at: Mapped[int] = mapped_column(Integer)
+    retain_until: Mapped[int] = mapped_column(Integer)
+    __table_args__ = (UniqueConstraint("document_id", "kind", "sha256"),)
+
+
+class FiscalCheck(Base):
+    __tablename__ = "fiscal_checks"
+    sequence: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[str] = mapped_column(String(40), unique=True)
+    document_id: Mapped[str] = mapped_column(String(40), index=True)
+    environment: Mapped[str] = mapped_column(String(8))
+    invoice_hash: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(30))
+    provider: Mapped[str] = mapped_column(String(100))
+    evidence_reference: Mapped[str] = mapped_column(String(200))
+    checked_at: Mapped[int] = mapped_column(Integer)
+
+
+class BillAttachment(Base):
+    __tablename__ = "bill_attachments"
+    scope: Mapped[str] = mapped_column(String(64), primary_key=True)
+    document_id: Mapped[str] = mapped_column(String(40), index=True)
+    file_id: Mapped[str] = mapped_column(String(40))
+    provider_reference: Mapped[str] = mapped_column(String(200))
+    created_at: Mapped[int] = mapped_column(Integer)
+
+
+class ReceiptCapture(Base):
+    __tablename__ = "receipt_captures"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    environment: Mapped[str] = mapped_column(String(8))
+    buyer_id: Mapped[str] = mapped_column(String(40), index=True)
+    filename: Mapped[str] = mapped_column(String(150))
+    media_type: Mapped[str] = mapped_column(String(80))
+    sha256: Mapped[str] = mapped_column(String(64))
+    content: Mapped[bytes] = mapped_column(LargeBinary)
+    candidate: Mapped[dict] = mapped_column(JSON)
+    provider: Mapped[str] = mapped_column(String(100))
+    created_at: Mapped[int] = mapped_column(Integer)
+    retain_until: Mapped[int] = mapped_column(Integer)
+    document_id: Mapped[str | None] = mapped_column(String(40), nullable=True)

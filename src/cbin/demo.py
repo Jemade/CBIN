@@ -42,6 +42,11 @@ def create_demo_app():
     os.environ["CBIN_IMPORT_PROFILES"] = "{}"
     os.environ["CBIN_ERP_ALLOWLIST"] = "[]"
     os.environ["CBIN_WEBHOOK_ALLOWLIST"] = "[]"
+    os.environ["CBIN_OCR_CONFIG"] = "{}"
+    os.environ["CBIN_FISCAL_VERIFIER_CONFIG"] = "{}"
+    os.environ["CBIN_OCR_ALLOWLIST"] = "[]"
+    os.environ["CBIN_FISCAL_VERIFIER_ALLOWLIST"] = "[]"
+    os.environ["CBIN_REQUIRE_FISCAL_VERIFICATION"] = "false"
     app = create_app(settings)
     initialize(app.state.engine)
     workspaces = {}

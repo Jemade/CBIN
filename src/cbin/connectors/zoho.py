@@ -1,3 +1,4 @@
+import hashlib
 import os
 from decimal import Decimal
 
@@ -8,6 +9,8 @@ from cbin.connectors.base import AmbiguousOutcome, ConnectorError
 
 class ZohoBooksAdapter:
     """Sandbox-ready draft bill adapter. OAuth provisioning is an operator responsibility."""
+
+    attachment_mode = "packet"
 
     def __init__(self, config, client=None):
         self.config = config
@@ -242,3 +245,47 @@ class ZohoBooksAdapter:
         if total != invoice["totals"]["grand_total_minor"]:
             raise AmbiguousOutcome("ZOHO_TOTAL_MISMATCH")
         return str(bill["bill_id"])
+
+    def attach_document(self, bill_reference, document_id, file, create_allowed=True):
+        if file.media_type != "application/pdf":
+            raise ConnectorError("ZOHO_ATTACHMENT_REQUIRES_PDF_PACKET")
+        token = os.environ.get(self.config["token_env"])
+        if not token:
+            raise ConnectorError("ZOHO_TOKEN_MISSING")
+        url = (
+            self.config.get("base_url", "https://www.zohoapis.com")
+            + f"/books/v3/bills/{bill_reference}/attachment"
+        )
+        kwargs = {
+            "headers": {"Authorization": f"Zoho-oauthtoken {token}"},
+            "params": {"organization_id": self.config["organization_id"]},
+        }
+        try:
+
+            def lookup():
+                response = self.client.get(url, **kwargs)
+                if response.status_code == 404:
+                    return None
+                if response.status_code != 200 or len(response.content) > 6_000_000:
+                    raise AmbiguousOutcome("ZOHO_ATTACHMENT_READ_UNCONFIRMED")
+                # Never overwrite a different existing bill attachment.
+                if hashlib.sha256(response.content).hexdigest() != file.sha256:
+                    raise AmbiguousOutcome("ZOHO_ATTACHMENT_MISMATCH")
+                return "zoho-file:" + file.sha256
+
+            found = lookup()
+            if found:
+                return found
+            if not create_allowed:
+                raise AmbiguousOutcome("ZOHO_ATTACHMENT_REQUIRES_RECONCILIATION")
+            response = self.client.post(
+                url, files={"attachment": (file.filename, file.content, file.media_type)}, **kwargs
+            )
+            if response.status_code not in {200, 201}:
+                raise AmbiguousOutcome("ZOHO_ATTACHMENT_WRITE_UNCONFIRMED")
+            found = lookup()
+            if not found:
+                raise AmbiguousOutcome("ZOHO_ATTACHMENT_MISSING_AFTER_WRITE")
+            return found
+        except httpx.HTTPError:
+            raise AmbiguousOutcome("ZOHO_ATTACHMENT_TRANSPORT_UNCERTAIN") from None

@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from fastapi import Depends, FastAPI, Header, Query, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select
@@ -28,7 +28,16 @@ from cbin.db import (
     WebhookEndpoint,
     make_database,
 )
-from cbin.schemas import Accept, Invoice, Reject, Replay, WebhookRegistration
+from cbin.schemas import (
+    Accept,
+    AttachmentUpload,
+    CaptureConfirmation,
+    Invoice,
+    InvoicePackage,
+    Reject,
+    Replay,
+    WebhookRegistration,
+)
 from cbin.security import key_digest
 from cbin.service import (
     DomainError,
@@ -186,6 +195,31 @@ def create_app(settings=None):
             "environment": credential.environment,
         }
 
+    @app.post("/v1/seller/invoice-packages", status_code=202)
+    def send_invoice_package(
+        body: InvoicePackage,
+        idempotency_key: str = Header(min_length=1, max_length=200),
+        credential=Depends(authenticate),
+        db=Depends(session),
+    ):
+        import hashlib
+
+        from cbin.documents import decode_upload, files_for, upload_original
+
+        content_hash = hashlib.sha256(decode_upload(body.original)).hexdigest()
+        document, duplicate = submit(db, credential, body.invoice, idempotency_key)
+        originals = [f for f in files_for(db, document) if f.kind == "seller_original"]
+        if duplicate:
+            if not any(f.sha256 == content_hash for f in originals):
+                raise DomainError(
+                    "ORIGINAL_CONFLICT",
+                    "This package was already sent with different invoice evidence",
+                    409,
+                )
+        else:
+            upload_original(db, credential, document, body.original)
+        return {**serialize_document(document), "duplicate": duplicate}
+
     @app.get("/v1/seller/import-profiles")
     def seller_import_profiles(credential=Depends(authenticate)):
         if credential.role not in {"submitter", "admin"}:
@@ -266,6 +300,12 @@ def create_app(settings=None):
                 + ":"
                 + source_id,
             )
+            if not duplicate and hasattr(adapter, "source_attachment"):
+                from cbin.documents import upload_original
+
+                original = adapter.source_attachment(source_id)
+                if original is not None:
+                    upload_original(db, credential, document, original)
             return {**serialize_document(document), "duplicate": duplicate}
         except ConnectorError as exc:
             raise DomainError("SOURCE_UNAVAILABLE", str(exc), 503, True) from None
@@ -377,14 +417,114 @@ def create_app(settings=None):
             "limit": limit,
         }
 
+    @app.post("/v1/receipt-captures", status_code=201)
+    def extract_receipt(
+        body: AttachmentUpload, credential=Depends(authenticate), db=Depends(session)
+    ):
+        from cbin.capture import extract, serialize
+
+        return serialize(extract(db, credential, body))
+
+    @app.get("/v1/receipt-captures")
+    def receipt_captures(credential=Depends(authenticate), db=Depends(session)):
+        from cbin.capture import buyer_access, serialize
+        from cbin.db import ReceiptCapture
+
+        buyer_access(credential)
+        rows = db.scalars(
+            select(ReceiptCapture)
+            .where(
+                ReceiptCapture.environment == credential.environment,
+                ReceiptCapture.buyer_id == credential.business_id,
+            )
+            .order_by(ReceiptCapture.created_at.desc())
+            .limit(50)
+        )
+        return {"items": [serialize(row) for row in rows]}
+
+    @app.post("/v1/receipt-captures/{capture_id}/confirm", status_code=202)
+    def confirm_receipt(
+        capture_id: str,
+        body: CaptureConfirmation,
+        credential=Depends(authenticate),
+        db=Depends(session),
+    ):
+        from cbin.capture import confirm
+        from cbin.db import ReceiptCapture
+
+        row = db.scalar(
+            select(ReceiptCapture)
+            .where(
+                ReceiptCapture.id == capture_id,
+                ReceiptCapture.environment == credential.environment,
+                ReceiptCapture.buyer_id == credential.business_id,
+            )
+            .with_for_update()
+        )
+        if not row:
+            raise DomainError("CAPTURE_NOT_FOUND", "Receipt capture not found", 404)
+        document, duplicate = confirm(db, credential, row)
+        return {**serialize_document(document), "duplicate": duplicate}
+
+    @app.get("/v1/receipt-captures/{capture_id}/original")
+    def capture_original(capture_id: str, credential=Depends(authenticate), db=Depends(session)):
+        from cbin.db import ReceiptCapture
+
+        row = db.get(ReceiptCapture, capture_id)
+        if (
+            not row
+            or row.buyer_id != credential.business_id
+            or row.environment != credential.environment
+        ):
+            raise DomainError("CAPTURE_NOT_FOUND", "Receipt capture not found", 404)
+        return Response(
+            row.content,
+            media_type=row.media_type,
+            headers={
+                "Content-Disposition": 'attachment; filename="' + row.filename + '"',
+                "Cache-Control": "no-store",
+            },
+        )
+
     @app.get("/v1/documents/{document_id}")
     def read_document(document_id: str, credential=Depends(authenticate), db=Depends(session)):
+        from cbin.db import BillAttachment
+        from cbin.documents import file_summary, files_for
+        from cbin.fiscal import current_check
+
         document = get_document(db, credential, document_id)
         events = db.scalars(
             select(AuditEvent).where(AuditEvent.document_id == document.id).order_by(AuditEvent.id)
         ).all()
+        linked = {
+            row.file_id: row.provider_reference
+            for row in db.scalars(
+                select(BillAttachment).where(BillAttachment.document_id == document.id)
+            )
+        }
+        attachment_jobs = {
+            row.payload["file_id"]: row.state
+            for row in db.scalars(
+                select(Job).where(Job.document_id == document.id, Job.kind == "attachment")
+            )
+        }
         return {
             **serialize_document(document),
+            "files": [
+                {
+                    **file_summary(row),
+                    "erp_status": "stored"
+                    if row.id in linked
+                    else attachment_jobs.get(row.id, "retained_in_cbin"),
+                    "erp_reference": linked.get(row.id),
+                }
+                for row in files_for(db, document)
+            ],
+            "fiscal_check": current_check(db, document),
+            "fiscal_verification": current_check(db, document)["status"],
+            "provenance": "buyer_scan"
+            if any(e.kind == "invoice.buyer_capture" for e in events)
+            else "seller_submission",
             "seller_name": db.get(Business, document.seller_id).name,
             "buyer_name": db.get(Business, document.buyer_id).name,
             "timeline": [
@@ -392,6 +532,90 @@ def create_app(settings=None):
                 for e in events
             ],
         }
+
+    @app.post("/v1/documents/{document_id}/files", status_code=201)
+    def add_original(
+        document_id: str,
+        body: AttachmentUpload,
+        credential=Depends(authenticate),
+        db=Depends(session),
+    ):
+        from cbin.documents import file_summary, upload_original
+
+        document = get_document(db, credential, document_id)
+        # Share the document lock with buyer decisions to seal evidence atomically.
+        db.scalar(select(Document).where(Document.id == document.id).with_for_update())
+        db.refresh(document)
+        return file_summary(upload_original(db, credential, document, body))
+
+    @app.get("/v1/documents/{document_id}/files/{file_id}")
+    def download_original(
+        document_id: str, file_id: str, credential=Depends(authenticate), db=Depends(session)
+    ):
+        from cbin.db import InvoiceFile
+
+        document = get_document(db, credential, document_id)
+        row = db.get(InvoiceFile, file_id)
+        if not row or row.document_id != document.id or row.environment != credential.environment:
+            raise DomainError("FILE_NOT_FOUND", "File not found", 404)
+        record(
+            db,
+            credential,
+            "invoice.evidence_downloaded",
+            document,
+            {"file_id": row.id},
+            notify=False,
+        )
+        return Response(
+            row.content,
+            media_type=row.media_type,
+            headers={
+                "Content-Disposition": 'attachment; filename="' + row.filename + '"',
+                "Cache-Control": "no-store",
+                "X-Content-SHA256": row.sha256,
+            },
+        )
+
+    @app.get("/v1/documents/{document_id}/print")
+    def print_copy(
+        document_id: str,
+        layout: str = Query("a4", pattern="^(a4|receipt48|escpos32|escpos48)$"),
+        credential=Depends(authenticate),
+        db=Depends(session),
+    ):
+        from cbin.documents import escpos, invoice_pdf
+
+        document = get_document(db, credential, document_id)
+        raw = layout.startswith("escpos")
+        content = (
+            escpos(document.payload, int(layout[-2:]))
+            if raw
+            else invoice_pdf(document.payload, layout)
+        )
+        record(
+            db,
+            credential,
+            "invoice.print_copy_downloaded",
+            document,
+            {"layout": layout},
+            notify=False,
+        )
+        return Response(
+            content,
+            media_type="application/octet-stream" if raw else "application/pdf",
+            headers={
+                "Content-Disposition": 'attachment; filename="invoice-'
+                + layout
+                + ('.bin"' if raw else '.pdf"'),
+                "Cache-Control": "no-store",
+            },
+        )
+
+    @app.post("/v1/documents/{document_id}/fiscal/verify")
+    def check_fiscal(document_id: str, credential=Depends(authenticate), db=Depends(session)):
+        from cbin.fiscal import verify
+
+        return verify(db, credential, get_document(db, credential, document_id))
 
     @app.get("/v1/documents/{document_id}/bookkeeping")
     def bookkeeping_context(
@@ -569,7 +793,7 @@ def create_app(settings=None):
         job = db.get(Job, job_id)
         if not job or job.environment != credential.environment:
             raise DomainError("JOB_NOT_FOUND", "Job not found", 404)
-        if job.state != "needs_reconciliation" or job.kind != "post":
+        if job.state != "needs_reconciliation" or job.kind not in {"post", "attachment"}:
             raise DomainError("INVALID_STATE", "Only ambiguous posting jobs can be reconciled")
         job.state, job.available_at = "pending", 0
         document = db.get(Document, job.document_id)

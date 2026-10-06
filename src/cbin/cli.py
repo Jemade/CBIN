@@ -42,6 +42,9 @@ def main():
     sub.add_parser("init-db")
     sub.add_parser("migrate-bookkeeping")
     sub.add_parser("migrate-mvp")
+    sub.add_parser("migrate-invoice-records")
+    archive = sub.add_parser("archive-existing-invoices")
+    archive.add_argument("--limit", type=int, default=100)
     sub.add_parser("demo")
     business = sub.add_parser("add-business")
     business.add_argument("id")
@@ -65,6 +68,42 @@ def main():
     args = parser.parse_args()
     settings = Settings.from_env()
     engine, sessions = make_database(settings.database_url)
+    if args.command == "archive-existing-invoices":
+        from cbin.db import InvoiceFile
+        from cbin.documents import archive_exchange
+
+        if not 1 <= args.limit <= 1000:
+            raise ValueError("Choose a batch size from 1 to 1000")
+        with sessions.begin() as db:
+            rows = db.scalars(
+                select(Document)
+                .where(
+                    Document.environment == settings.environment,
+                    ~select(InvoiceFile.id).where(InvoiceFile.document_id == Document.id).exists(),
+                )
+                .order_by(Document.id)
+                .limit(args.limit)
+            ).all()
+            for row in rows:
+                archive_exchange(db, row)
+        print(
+            f"Archived {len(rows)} existing invoice payloads; no supplier originals were invented"
+        )
+        engine.dispose()
+        return
+    if args.command == "migrate-invoice-records":
+        from cbin.db import BillAttachment, FiscalCheck, InvoiceFile, ReceiptCapture
+
+        for table in (
+            InvoiceFile.__table__,
+            FiscalCheck.__table__,
+            BillAttachment.__table__,
+            ReceiptCapture.__table__,
+        ):
+            table.create(engine, checkfirst=True)
+        print("Invoice evidence tables ready; existing documents remain unchanged")
+        engine.dispose()
+        return
     if args.command in {"migrate-bookkeeping", "migrate-mvp"}:
         for table in (AccountingSnapshot.__table__, BuyerMapping.__table__):
             table.create(engine, checkfirst=True)

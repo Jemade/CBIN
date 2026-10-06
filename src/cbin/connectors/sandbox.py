@@ -15,6 +15,9 @@ class SandboxAdapter:
             raise ConnectorError("SANDBOX_CURRENCY_UNSUPPORTED")
         return f"sandbox:{document_id}"
 
+    def attach_document(self, bill_reference, document_id, file, create_allowed=True):
+        return f"sandbox-file:{file.sha256}"
+
     def accounting_references(self):
         return {
             "source": "sandbox_simulation",

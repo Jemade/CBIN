@@ -119,3 +119,7 @@ The buyer can search accounting records by name, allocate each invoice line to a
 ## Private hosted demonstration
 
 `python -m cbin.demo` starts an isolated, single-process test demonstration with an automatic outbox worker and three synthetic seller invoices. Set `CBIN_DEMO_ACCESS_KEY` to a strong random secret and keep `CBIN_ENVIRONMENT=test`. Open `https://YOUR-DEMO-HOST/#demo=YOUR_PRIVATE_ACCESS_KEY` to load role controls. The fragment is removed after exchanging it for short-lived in-memory business credentials; it never reaches ordinary HTTP access logs. The demo has no real ERP connection, no public reset/drain endpoints, and no access to a business database. All data and business credentials reset on process restart. Reopen the original private link after restarting or refreshing. This entrypoint is for demonstrations only, not the PostgreSQL multi-process business deployment.
+
+### Invoice files, Epson output and buyer records
+
+See [Invoice lifecycle and setup](docs/INVOICE-LIFECYCLE.md) for atomic seller invoice packages, original-file storage, A4/receipt copies, Epson ESC/POS downloads, paper receipt intake, fiscal verification contracts and ERP attachment recovery. Existing instances must run `cbin migrate-invoice-records` before starting the upgraded API/worker. The free demo remains temporary and simulated; actual OCR, fiscal, printer and ERP acceptance tests require the corresponding configured services and hardware.

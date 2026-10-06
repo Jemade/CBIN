@@ -1,5 +1,6 @@
 """Odoo 18 prototype. Install and validate in a sandbox before enabling any cron."""
 
+import base64
 import json
 import os
 from decimal import ROUND_HALF_UP, Decimal
@@ -16,6 +17,7 @@ class Partner(models.Model):
     _inherit = "res.partner"
     cbin_business_id = fields.Char(groups="account.group_account_manager")
     cbin_tin = fields.Char(groups="account.group_account_manager")
+    cbin_vat_number = fields.Char(groups="account.group_account_manager")
 
 
 class Company(models.Model):
@@ -47,8 +49,13 @@ class Outbound(models.Model):
             return
         for row in self.search([("state", "=", "pending")], limit=50):
             try:
+                # Pending rows from the earlier module remain deliverable after an upgrade.
+                package = json.loads(row.payload)
+                endpoint = (
+                    "/v1/seller/invoice-packages" if "invoice" in package else "/v1/documents"
+                )
                 response = requests.post(
-                    url.rstrip("/") + "/v1/documents",
+                    url.rstrip("/") + endpoint,
                     data=row.payload,
                     headers={
                         "Authorization": f"Bearer {key}",
@@ -69,6 +76,28 @@ class Outbound(models.Model):
 
 class AccountMove(models.Model):
     _inherit = "account.move"
+    cbin_fiscal_metadata = fields.Json(groups="account.group_account_manager", copy=False)
+
+    def cbin_export_attachment(self):
+        self.ensure_one()
+        self.check_access_rights("read")
+        self.check_access_rule("read")
+        if self.state != "posted" or self.move_type != "out_invoice":
+            raise ValueError("Only posted customer invoices can be exported")
+        stored = self.invoice_pdf_report_id
+        if stored:
+            data = stored.datas
+            data = data.decode("ascii") if isinstance(data, bytes) else data
+        else:
+            pdf, _ = self.env["ir.actions.report"]._render_qweb_pdf(
+                "account.account_invoices", res_ids=self.ids
+            )
+            data = base64.b64encode(pdf).decode("ascii")
+        return {
+            "filename": "supplier-invoice.pdf",
+            "media_type": "application/pdf",
+            "content_base64": data,
+        }
 
     def action_post(self):
         result = super().action_post()
@@ -83,17 +112,20 @@ class AccountMove(models.Model):
             if queue.search_count([("move_id", "=", move.id)]):
                 continue
             try:
-                payload = move._cbin_payload()
+                payload = {
+                    "invoice": move._cbin_payload(),
+                    "original": move.cbin_export_attachment(),
+                }
                 queue.create(
                     {"move_id": move.id, "payload": json.dumps(payload), "state": "pending"}
                 )
-            except ValueError:
+            except Exception:
                 # Unsupported invoice shape never interrupts the seller's existing posting path.
                 queue.create(
                     {
                         "move_id": move.id,
                         "state": "blocked",
-                        "error_code": "NORMALIZATION_UNSUPPORTED",
+                        "error_code": "NORMALIZATION_OR_ORIGINAL_EXPORT_FAILED",
                     }
                 )
         return result
@@ -167,8 +199,18 @@ class AccountMove(models.Model):
             "seller": {
                 "cbin_id": self.company_id.cbin_business_id,
                 "tin": self.company_id.cbin_tin,
+                "legal_name": self.company_id.name,
+                "address": self.company_id.partner_id._display_address() or None,
+                "vat_number": self.company_id.partner_id.cbin_vat_number or None,
             },
-            "buyer": {"cbin_id": self.partner_id.cbin_business_id, "tin": self.partner_id.cbin_tin},
+            "buyer": {
+                "cbin_id": self.partner_id.cbin_business_id,
+                "tin": self.partner_id.cbin_tin,
+                "legal_name": self.partner_id.name,
+                "address": self.partner_id._display_address() or None,
+                "vat_number": self.partner_id.cbin_vat_number or None,
+            },
+            "fiscal_metadata": self.cbin_fiscal_metadata or None,
             "line_items": lines,
             "totals": {
                 "subtotal_minor": subtotal,

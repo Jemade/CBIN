@@ -10,10 +10,20 @@ from sqlalchemy import or_, select, update
 
 from cbin.config import Settings
 from cbin.connectors.base import AmbiguousOutcome, ConnectorError
-from cbin.connectors.registry import adapter_for
-from cbin.db import Attempt, Credential, Decision, Document, Job, WebhookEndpoint, make_database
+from cbin.connectors.registry import adapter_for, connection_fingerprint
+from cbin.db import (
+    Attempt,
+    BillAttachment,
+    Credential,
+    Decision,
+    Document,
+    InvoiceFile,
+    Job,
+    WebhookEndpoint,
+    make_database,
+)
 from cbin.security import sign_event
-from cbin.service import canonical_json, now, record, uid
+from cbin.service import canonical_json, digest, enqueue, now, record, uid
 
 logger = logging.getLogger("cbin.worker")
 
@@ -74,12 +84,15 @@ class Worker:
             ).all()
             # Recover a previous write before creating anything else, including after a crash.
             uncertain = any(a.outcome in {"started", "ambiguous"} for a in previous)
-            decision = db.get(Decision, job.document_id) if job.kind == "post" else None
+            decision = (
+                db.get(Decision, job.document_id) if job.kind in {"post", "attachment"} else None
+            )
             endpoint = (
                 db.get(WebhookEndpoint, job.payload["endpoint_id"])
                 if job.kind == "webhook"
                 else None
             )
+            file = db.get(InvoiceFile, job.payload["file_id"]) if job.kind == "attachment" else None
         reference, code, outcome = None, None, "success"
         adapter = None
         try:
@@ -98,6 +111,28 @@ class Worker:
                     )
             elif job.kind == "webhook":
                 self.deliver_webhook(endpoint, job.payload["event"])
+            elif job.kind == "attachment":
+                if (
+                    not file
+                    or file.document_id != document.id
+                    or file.environment != job.environment
+                ):
+                    raise ConnectorError("ATTACHMENT_CONTEXT_INVALID")
+                if job.payload["connection_fingerprint"] != connection_fingerprint(
+                    document.buyer_id, job.environment
+                ):
+                    raise ConnectorError("ATTACHMENT_CONNECTION_CHANGED")
+                adapter = self.adapter_factory(document.buyer_id, job.environment)
+                if not hasattr(adapter, "attach_document"):
+                    raise ConnectorError("ERP_ATTACHMENT_NOT_IMPLEMENTED")
+                confirmed_bill = adapter.recover_from_timeout(
+                    document.id, document.payload, decision.mapping
+                )
+                if confirmed_bill != document.posted_reference:
+                    raise AmbiguousOutcome("ATTACHMENT_BILL_CONTEXT_UNCONFIRMED")
+                reference = adapter.attach_document(
+                    document.posted_reference, document.id, file, create_allowed=not uncertain
+                )
             else:
                 raise ConnectorError("UNKNOWN_JOB_KIND")
         except AmbiguousOutcome as exc:
@@ -109,7 +144,7 @@ class Worker:
             logger.error("Job %s failed (%s)", job.id, job.kind)
             code, outcome = (
                 "UNEXPECTED_WORKER_ERROR",
-                "ambiguous" if job.kind == "post" else "failed",
+                "ambiguous" if job.kind in {"post", "attachment"} else "failed",
             )
         finally:
             if adapter and hasattr(adapter, "close"):
@@ -152,7 +187,47 @@ class Worker:
                             "mode": "simulated" if reference.startswith("sandbox:") else "provider",
                         },
                     )
-            elif outcome == "ambiguous" and job.kind == "post":
+                    from cbin.documents import evidence_packet, files_for
+
+                    files = (
+                        [evidence_packet(db, document)]
+                        if getattr(adapter, "attachment_mode", None) == "packet"
+                        else files_for(db, document)
+                    )
+                    for file in files:
+                        enqueue(
+                            db,
+                            job.environment,
+                            "attachment",
+                            {
+                                "file_id": file.id,
+                                "connection_fingerprint": connection_fingerprint(
+                                    document.buyer_id, job.environment
+                                ),
+                            },
+                            f"attachment:{document.id}:{file.id}",
+                            document.id,
+                        )
+                elif job.kind == "attachment":
+                    scope = digest([document.id, job.payload["file_id"]])
+                    if db.get(BillAttachment, scope) is None:
+                        db.add(
+                            BillAttachment(
+                                scope=scope,
+                                document_id=document.id,
+                                file_id=job.payload["file_id"],
+                                provider_reference=reference,
+                                created_at=now(),
+                            )
+                        )
+                    record(
+                        db,
+                        actor,
+                        "invoice.erp_attachment_stored",
+                        document,
+                        {"file_id": job.payload["file_id"], "reference": reference},
+                    )
+            elif outcome == "ambiguous" and job.kind in {"post", "attachment"}:
                 job.state = "needs_reconciliation"
                 record(db, actor, "posting.ambiguous", document, {"job_id": job.id, "code": code})
             elif job.attempts >= self.settings.max_attempts:

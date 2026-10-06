@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { BookkeepingReview, type AccountingChoice } from "./BookkeepingReview";
+import { InvoiceEvidence } from "./InvoiceEvidence";
+import { ReceiptCapture } from "./ReceiptCapture";
 import type { Doc, AuditEvent } from "./types";
 import catalogue from "../../src/cbin/connectors/catalogue.json";
 import "./workspace.css";
@@ -583,6 +585,7 @@ function App() {
           )}
           {page === "Documents" && (
             <>
+              {mode === "Buyer" && <ReceiptCapture token={token} request={request} onConfirmed={load} />}
               {mode === "Seller" && (
                 <section className="source-section">
                   <div className="section-title">
@@ -968,6 +971,7 @@ function App() {
                   </div>
                 </div>
                 <p>Issued {selected.payload.issued_at}</p>
+                {selected.provenance === "buyer_scan" && <p className="scope-note">Captured from a buyer-uploaded scan. This was not submitted by the seller.</p>}
                 <div className="tablewrap">
                   <table>
                     <thead>
@@ -1029,6 +1033,8 @@ function App() {
                     Accounting reference: {selected.posted_reference}
                   </p>
                 )}
+                <InvoiceEvidence document={selected} token={token} mode={mode} request={request}
+                  reload={async () => { setSelected(await request<Doc>(`/v1/documents/${selected.id}`)); }} />
               </article>
               <div className="record-review">
                 {mode === "Buyer" &&

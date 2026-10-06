@@ -107,10 +107,20 @@ def get_document(db, credential, document_id):
     return document
 
 
-def submit(db, credential, invoice, key):
-    if credential.role not in {"submitter", "admin"}:
+def submit(db, credential, invoice, key, *, buyer_capture=False):
+    allowed = {"reviewer", "admin"} if buyer_capture else {"submitter", "admin"}
+    if credential.role not in allowed:
         fail("FORBIDDEN", "A submitter or business admin credential is required", 403)
     payload = invoice.model_dump(mode="json")
+    # Keep v1.0 hashes stable for submissions made before optional display fields existed.
+    for party in (payload["seller"], payload["buyer"]):
+        for field in ("legal_name", "address", "vat_number"):
+            if party.get(field) is None:
+                party.pop(field, None)
+    if payload.get("fiscal_metadata"):
+        for field in ("device_id", "fiscal_day", "verification_code", "verification_url"):
+            if payload["fiscal_metadata"].get(field) is None:
+                payload["fiscal_metadata"].pop(field, None)
     request_hash = digest(payload)
     existing = db.scalar(
         select(Idempotency).where(
@@ -123,7 +133,9 @@ def submit(db, credential, invoice, key):
         if existing.request_hash != request_hash:
             fail("IDEMPOTENCY_CONFLICT", "The key was used for a different payload")
         return db.get(Document, existing.document_id), True
-    if invoice.seller.cbin_id != credential.business_id:
+    if buyer_capture and invoice.buyer.cbin_id != credential.business_id:
+        fail("BUYER_MISMATCH", "Capture credential does not belong to the buyer", 403)
+    if not buyer_capture and invoice.seller.cbin_id != credential.business_id:
         fail("SELLER_MISMATCH", "Credential does not belong to the seller", 403)
     for party in (invoice.seller, invoice.buyer):
         business = db.get(Business, party.cbin_id)
@@ -150,7 +162,7 @@ def submit(db, credential, invoice, key):
     document = db.scalar(
         select(Document).where(
             Document.environment == credential.environment,
-            Document.seller_id == credential.business_id,
+            Document.seller_id == invoice.seller.cbin_id,
             Document.fingerprint == fingerprint,
         )
     )
@@ -172,6 +184,17 @@ def submit(db, credential, invoice, key):
         )
         db.add(document)
         db.flush()
+        from cbin.documents import archive_exchange
+
+        archive_exchange(db, document)
+        if buyer_capture:
+            record(
+                db,
+                credential,
+                "invoice.buyer_capture",
+                document,
+                {"source": "buyer_scan", "seller_authenticated_submission": False},
+            )
         for kind in ("received", "validated", "queued"):
             record(db, credential, f"document.{kind}", document)
         enqueue(db, credential.environment, "route", {}, f"route:{document.id}", document.id)
@@ -192,6 +215,8 @@ def decide(db, credential, document_id, action, body):
     if credential.role not in {"reviewer", "admin"}:
         fail("FORBIDDEN", "A reviewer or business admin credential is required", 403)
     document = get_document(db, credential, document_id)
+    db.scalar(select(Document).where(Document.id == document.id).with_for_update())
+    db.refresh(document)
     if document.buyer_id != credential.business_id:
         fail("FORBIDDEN", "Only the buyer may decide", 403)
     old = db.get(Decision, document_id)
@@ -204,6 +229,17 @@ def decide(db, credential, document_id, action, body):
     if document.status not in {"delivered", "under_review"}:
         fail("INVALID_STATE", "Document must be delivered before buyer review")
     if action == "accept":
+        import os
+
+        if os.getenv("CBIN_REQUIRE_FISCAL_VERIFICATION", "false").lower() == "true":
+            from cbin.fiscal import current_check
+
+            if current_check(db, document)["status"] != "valid":
+                fail(
+                    "FISCAL_CHECK_REQUIRED",
+                    "A confirmed fiscal check is required before approval",
+                    422,
+                )
         if body.bookkeeping:
             from cbin.bookkeeping import preview
 

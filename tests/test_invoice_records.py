@@ -424,3 +424,71 @@ def test_leap_day_retention_is_at_least_six_calendar_years():
         .isoformat()
         .startswith("2030-03-01")
     )
+
+
+def test_empty_compose_provider_settings_remain_disabled(system, invoice, monkeypatch):
+    _, client, keys, _ = system
+    monkeypatch.setenv("CBIN_OCR_CONFIG", "")
+    monkeypatch.setenv("CBIN_FISCAL_VERIFIER_CONFIG", "")
+    assert (
+        client.post(
+            "/v1/receipt-captures", json=original(invoice), headers=headers(keys, "buyer:admin")
+        ).status_code
+        == 503
+    )
+    invoice["fiscal_metadata"] = {
+        "device_serial": "D1",
+        "zimra_signature": "unverified",
+        "receipt_reference": "F1",
+    }
+    ident = submitted(system, invoice)
+    assert (
+        client.post(
+            f"/v1/documents/{ident}/fiscal/verify", json={}, headers=headers(keys, "buyer:admin")
+        ).status_code
+        == 503
+    )
+
+
+def test_attachment_connection_change_never_sends_originals_to_another_erp(
+    system, invoice, monkeypatch
+):
+    app, client, keys, settings = system
+    ident = submitted(system, invoice)
+    worker = Worker(settings, app.state.sessions, lambda *_: SandboxAdapter())
+    worker.run_once()
+    body = {
+        "supplier_reference": "SUP-01",
+        "account_reference": "INV-GOODS",
+        "sku_mapping": {"SKU-1": "ITEM-CABLE"},
+        "tax_mapping": {"15": "TAX-15"},
+    }
+    assert (
+        client.post(
+            f"/v1/documents/{ident}/accept", json=body, headers=headers(keys, "buyer:admin")
+        ).status_code
+        == 200
+    )
+    worker.run_once()
+    monkeypatch.setenv("CBIN_CONNECTOR_CONFIG", '{"buyer":{"type":"different-erp"}}')
+    worker.run_once()
+    with app.state.sessions() as db:
+        failed = db.scalar(select(Job).where(Job.kind == "attachment", Job.last_error.is_not(None)))
+        assert failed.last_error == "ATTACHMENT_CONNECTION_CHANGED"
+        assert db.scalar(select(BillAttachment)) is None
+        assert db.get(Document, ident).posted_reference == f"sandbox:{ident}"
+
+
+def test_legacy_invoice_hash_stays_stable_without_optional_display_fields(system, invoice):
+    from cbin.service import digest
+
+    app, _, _, _ = system
+    ident = submitted(system, invoice)
+    old = invoice | {
+        "schema_version": "1.0",
+        "exchange_rate_zig": None,
+        "fiscal_metadata": None,
+        "correction_of": None,
+    }
+    with app.state.sessions() as db:
+        assert db.get(Document, ident).request_hash == digest(old)

@@ -45,7 +45,7 @@ def verify(db, credential, document, client=None):
         raise DomainError(
             "FISCAL_EVIDENCE_MISSING", "A supplier fiscal receipt reference is required", 422
         )
-    config = json.loads(os.getenv("CBIN_FISCAL_VERIFIER_CONFIG", "{}"))
+    config = json.loads(os.getenv("CBIN_FISCAL_VERIFIER_CONFIG") or "{}")
     entry = config.get(document.environment)
     if not entry or not entry.get("reviewed") or not entry.get("evidence_reference"):
         raise DomainError(

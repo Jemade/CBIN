@@ -37,7 +37,7 @@ def serialize(row):
 def extract(db, credential, upload, client=None):
     buyer_access(credential)
     content = decode_upload(upload)
-    entry = json.loads(os.getenv("CBIN_OCR_CONFIG", "{}")).get(credential.environment)
+    entry = json.loads(os.getenv("CBIN_OCR_CONFIG") or "{}").get(credential.environment)
     if not entry or not entry.get("reviewed") or not entry.get("evidence_reference"):
         raise DomainError(
             "OCR_NOT_CONFIGURED",
